@@ -1,3 +1,4 @@
+import acm.graphics.GLabel;
 import acm.graphics.GObject;
 import acm.graphics.GOval;
 import acm.graphics.GRect;
@@ -41,12 +42,12 @@ public class Breakout extends GraphicsProgram {
         gameLoop();
     }
 
-    // Setting all variables for starting game
+    // Setting all variables ready for the game
     private void initGame() {
         drawBricks();
+        setRandomVx();
         createPaddle();
         createBall();
-        vx = rgen.nextDouble(1.0, 3.0) * (rgen.nextBoolean(0.5) ? -1 : 1);
     }
 
     // Each *frame* happens here
@@ -55,6 +56,11 @@ public class Breakout extends GraphicsProgram {
             moveBall();
             checkCollisions();
             pause(DELAY);
+        }
+        if (turnsCount == 0) {
+            handleGameLoss();
+        } else {
+            handleGameWin();
         }
         remove(ball);
     }
@@ -73,21 +79,9 @@ public class Breakout extends GraphicsProgram {
     }
 
 
-    // If the paddle misses the ball... RIP
-    private void handleBallMiss() {
-        turnsCount--;
-        if (turnsCount > 0) {
-            resetBall();
-        }
-    }
-
-    // Reset the ball to center
-    private void resetBall() {
-        ball.setLocation(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS);
-        vy = Math.abs(vy);
-        pause(2000);
-    }
-
+    /*
+        GAME INIT
+     */
     private void createBall() {
         ball = new GOval(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
         ball.setFilled(true);
@@ -115,6 +109,71 @@ public class Breakout extends GraphicsProgram {
         }
     }
 
+
+    private void createPaddle() {
+        paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        paddle.setFilled(true);
+        add(paddle);
+    }
+
+
+    /*
+        HANDLE EVENTS
+     */
+
+
+    // Just setting the paddleX based on mouse x
+    public void mouseMoved(MouseEvent e) {
+        double x = e.getX() - PADDLE_WIDTH / 2;
+        double paddleY = paddle.getY();
+        if (x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
+            paddle.setLocation(x, paddleY);
+        }
+    }
+
+    // If the paddle misses the ball... RIP
+    private void handleBallMiss() {
+        turnsCount--;
+        if (turnsCount > 0) {
+            resetBall();
+        }
+    }
+
+    // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
+    private void handlePaddleKick() {
+        vy = -Math.abs(vy);
+        double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
+        vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
+    }
+
+    private void handleGameLoss() {
+        renderTextInCenter("You Lost :(((", Color.RED, 30);
+    }
+
+    private void handleGameWin() {
+        renderTextInCenter("You WONN :))", Color.GREEN, 30);
+    }
+
+    /*
+        HELPER FUNCTIONS
+     */
+
+    private boolean isGameOver() {
+        return turnsCount == 0 || aliveBricks == 0;
+    }
+
+    // Reset the ball to center
+    private void resetBall() {
+        ball.setLocation(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS);
+        vy = Math.abs(vy);
+        setRandomVx();
+        pause(2000);
+    }
+
+    private void setRandomVx() {
+        vx = rgen.nextDouble(1.0, 3.0) * (rgen.nextBoolean(0.5) ? -1 : 1);
+    }
+
     private Color getBrickColor(int row) {
         if (row >= 8) {
             return Color.CYAN;
@@ -126,21 +185,6 @@ public class Breakout extends GraphicsProgram {
             return Color.ORANGE;
         } else {
             return Color.RED;
-        }
-    }
-
-    private void createPaddle() {
-        paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
-        paddle.setFilled(true);
-        add(paddle);
-    }
-
-    // Just setting the paddleX based on mouse x
-    public void mouseMoved(MouseEvent e) {
-        double x = e.getX() - PADDLE_WIDTH / 2;
-        double paddleY = paddle.getY();
-        if (x >= 0 && x + PADDLE_WIDTH <= WIDTH) {
-            paddle.setLocation(x, paddleY);
         }
     }
 
@@ -185,10 +229,14 @@ public class Breakout extends GraphicsProgram {
         return collider;
     }
 
-    // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
-    private void handlePaddleKick() {
-        vy = -Math.abs(vy);
-        double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
-        vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
+
+    private void renderTextInCenter(String str, Color color, int fontSize) {
+        GLabel text = new GLabel(str);
+        text.setFont(new Font("Serif", Font.PLAIN, fontSize));
+        text.setColor(color);
+        double x = (WIDTH - text.getWidth()) / 2;
+        double y = (HEIGHT - text.getAscent()) / 2;
+        add(text, x, y);
     }
+
 }
