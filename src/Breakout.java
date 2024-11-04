@@ -19,7 +19,7 @@ import java.awt.event.MouseEvent;
 public class Breakout extends GraphicsProgram {
 
 
-    public static final int DELAY = 1;
+    public static final int DELAY = 5;
     public static final int APPLICATION_WIDTH = 400;
     public static final int APPLICATION_HEIGHT = 600;
     private static final int WIDTH = APPLICATION_WIDTH;
@@ -131,6 +131,10 @@ public class Breakout extends GraphicsProgram {
         }
     }
 
+
+    private void deleteBrick(GObject object){
+      remove(object);
+    }
     private void checkBallCollisions() {
         double leftX = ball.getX();
         double rightX = leftX + BALL_RADIUS * 2;
@@ -146,7 +150,7 @@ public class Breakout extends GraphicsProgram {
         if (collisionObject != null) {
             vy = -Math.abs(vy);
             if (collisionObject.getY() != paddleY) {
-                remove(collisionObject);
+              deleteBrick(collisionObject);
             }
             return;
         }
@@ -159,20 +163,20 @@ public class Breakout extends GraphicsProgram {
             vy = Math.abs(vy);
 
             if (collisionObject.getY() != paddleY) {
-                // collisionObject.setVisible(false);
-                remove(collisionObject);
+                deleteBrick(collisionObject);
             }
             return;
         }
 
+        collisionObject = getElementAt(leftX, topY);
         if (collisionObject == null) {
             collisionObject = getElementAt(leftX, bottomY);
         }
         if (collisionObject != null) {
-            vx = Math.abs(vx);
+            vx = -Math.abs(vx);
 
             if (collisionObject.getY() != paddleY) {
-                collisionObject.setVisible(false);
+                deleteBrick(collisionObject);
             }
             return;
         }
@@ -182,9 +186,8 @@ public class Breakout extends GraphicsProgram {
             collisionObject = getElementAt(rightX, bottomY);
         }
         if (collisionObject != null) {
-
             if (collisionObject.getY() != paddleY) {
-                collisionObject = null;
+                deleteBrick(collisionObject);
             }
             vx = -Math.abs(vx);
         }
