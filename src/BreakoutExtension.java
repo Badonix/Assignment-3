@@ -35,6 +35,7 @@ public class BreakoutExtension extends GraphicsProgram {
     private RandomGenerator rgen = RandomGenerator.getInstance();
     private double turnsCount = NTURNS;
     private double aliveBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
+    private GLabel bricksLeft = null;
 
 
     public void run() {
@@ -48,8 +49,10 @@ public class BreakoutExtension extends GraphicsProgram {
         drawBricks();
         setRandomVx();
         renderHearts();
+        renderBricksLeft();
         createPaddle();
         createBall();
+        pause(2000);
     }
 
     // Each *frame* happens here
@@ -213,6 +216,7 @@ public class BreakoutExtension extends GraphicsProgram {
         } else if (collider != null) {
             remove(collider);
             aliveBricks--;
+            bricksLeft.setLabel("Remaining Bricks : " + (int) aliveBricks);
             vy = -vy;
         }
     }
@@ -255,6 +259,16 @@ public class BreakoutExtension extends GraphicsProgram {
         double x = (WIDTH - text.getWidth()) / 2;
         double y = (HEIGHT - text.getAscent()) / 2;
         add(text, x, y);
+    }
+
+
+    private void renderBricksLeft() {
+        bricksLeft = new GLabel("Remaining Bricks: " + (int) aliveBricks);
+        bricksLeft.setFont(new Font("Serif", Font.PLAIN, 17));
+        bricksLeft.setColor(Color.ORANGE);
+        double x = WIDTH - bricksLeft.getWidth();
+        double y = HEART_OFFSET + bricksLeft.getAscent() / 2;
+        add(bricksLeft, x, y);
     }
 
     private GObject getCurrentHeart() {
