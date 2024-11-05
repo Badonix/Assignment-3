@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 
 public class Breakout extends GraphicsProgram {
 
-    public static final int DELAY = 7;
+    public static final int DELAY = 5;
     public static final int APPLICATION_WIDTH = 400;
     public static final int APPLICATION_HEIGHT = 600;
     private static final int WIDTH = APPLICATION_WIDTH;

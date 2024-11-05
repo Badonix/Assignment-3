@@ -36,6 +36,8 @@ public class BreakoutExtension extends GraphicsProgram {
     private double turnsCount = NTURNS;
     private double aliveBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
     private GLabel bricksLeft = null;
+    private boolean isDarkModeEnabled = true;
+    private GImage switcher;
 
 
     public void run() {
@@ -50,6 +52,7 @@ public class BreakoutExtension extends GraphicsProgram {
         setRandomVx();
         renderHearts();
         renderBricksLeft();
+        renderThemeSwitcher(true);
         createPaddle();
         createBall();
         pause(2000);
@@ -96,6 +99,7 @@ public class BreakoutExtension extends GraphicsProgram {
             GImage heart = new GImage("./heart.png");
             heart.setSize(30, 30);
             add(heart, x, y);
+            heart.sendToFront();
             x += HEART_GAP + heart.getWidth();
         }
     }
@@ -146,6 +150,15 @@ public class BreakoutExtension extends GraphicsProgram {
         double paddleY = paddle.getY();
         if (x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
             paddle.setLocation(x, paddleY);
+        }
+    }
+
+    @Override
+    public void mouseClicked(MouseEvent e) {
+        double x = e.getX();
+        double y = e.getY();
+        if (switcher.contains(x, y)) {
+            handleThemeChange();
         }
     }
 
@@ -213,10 +226,10 @@ public class BreakoutExtension extends GraphicsProgram {
         GObject collider = getBallCollidingObject();
         if (collider == paddle) {
             handlePaddleKick();
-        } else if (collider != null) {
+        } else if (collider != null && collider instanceof GRect) {
             remove(collider);
             aliveBricks--;
-            bricksLeft.setLabel("Remaining Bricks : " + (int) aliveBricks);
+            bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
             vy = -vy;
         }
     }
@@ -263,9 +276,10 @@ public class BreakoutExtension extends GraphicsProgram {
 
 
     private void renderBricksLeft() {
-        bricksLeft = new GLabel("Remaining Bricks: " + (int) aliveBricks);
+        bricksLeft = new GLabel("Bricks: " + (int) aliveBricks);
         bricksLeft.setFont(new Font("Serif", Font.PLAIN, 17));
         bricksLeft.setColor(Color.ORANGE);
+        bricksLeft.sendToFront();
         double x = WIDTH - bricksLeft.getWidth();
         double y = HEART_OFFSET + bricksLeft.getAscent() / 2;
         add(bricksLeft, x, y);
@@ -277,4 +291,20 @@ public class BreakoutExtension extends GraphicsProgram {
         return heart;
     }
 
+    private void renderThemeSwitcher(boolean darkMode) {
+        switcher = darkMode ? new GImage("./light.png") : new GImage("./dark.png");
+        switcher.setSize(30, 20);
+        switcher.sendToFront();
+        double x = bricksLeft.getX() - switcher.getWidth() - 10;
+        add(switcher, x, HEART_OFFSET / 2);
+    }
+
+    private void handleThemeChange() {
+        remove(switcher);
+        isDarkModeEnabled = !isDarkModeEnabled;
+        renderThemeSwitcher(isDarkModeEnabled);
+        ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
+    }
 }
