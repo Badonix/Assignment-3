@@ -6,6 +6,7 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
@@ -13,10 +14,11 @@ import java.net.Socket;
 public class BreakoutServer extends GraphicsProgram {
 
     public static final int DELAY = 7;
-    public static final int APPLICATION_WIDTH = 400;
+    public static final int SEPERATOR_WIDTH = 300;
+    private static final int WIDTH = 400;
+    private static final int HEIGHT = 600;
+    public static final int APPLICATION_WIDTH = WIDTH * 2 + SEPERATOR_WIDTH;
     public static final int APPLICATION_HEIGHT = 600;
-    private static final int WIDTH = APPLICATION_WIDTH;
-    private static final int HEIGHT = APPLICATION_HEIGHT;
     private static final int PADDLE_WIDTH = 60;
     private static final int PADDLE_HEIGHT = 10;
     private static final int PADDLE_Y_OFFSET = 30;
@@ -41,7 +43,9 @@ public class BreakoutServer extends GraphicsProgram {
     private static final String address = "127.0.0.1";
 
     private GRect paddle;
+    private GRect clientPaddle;
     private GOval ball;
+    private GOval clientBall;
     private double vx, vy = 3.0;
     private RandomGenerator rgen = RandomGenerator.getInstance();
     private double turnsCount = NTURNS;
@@ -57,18 +61,19 @@ public class BreakoutServer extends GraphicsProgram {
     private Socket socket = null;
     private ServerSocket server = null;
     private DataInputStream in = null;
+    private DataOutputStream out = null;
 
 
     public void run() {
-        initGame();
-        addMouseListeners();
-        waitForConnection();
+        initGame();              // Set up the game environment
+        addMouseListeners();     // Set up controls
+        waitForConnection();     // Wait for the client to connect
 
         while (!gameStarted) {
-            pause(100);
+            pause(100);          // Wait until the game starts
         }
 
-        gameLoop();
+        gameLoop();              // Start the game loop
     }
 
     private void waitForConnection() {
@@ -79,20 +84,36 @@ public class BreakoutServer extends GraphicsProgram {
             System.out.println("Connection accepted");
 
             in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
-            String line = "";
-            while (!line.equals("Over")) {
-                try {
-                    line = in.readUTF();
-                    System.out.println(line);
-                } catch (IOException e) {
-                    System.out.println(e);
+            out = new DataOutputStream(socket.getOutputStream());
+
+            // Start a new thread for handling communication
+            new Thread(() -> {
+                while (true) {
+                    try {
+                        // Read data from the client
+                        double paddleX = in.readDouble();
+                        double ballX = in.readDouble();
+                        double ballY = in.readDouble();
+                        double brickX = in.readDouble();
+                        double brickY = in.readDouble();
+
+                        GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
+                        if (currentEl != null) {
+                            remove(currentEl);
+                        }
+
+                        clientPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
+                        clientBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+
+                    } catch (IOException e) {
+                        System.out.println("Error in communication thread: " + e.getMessage());
+                        break;
+                    }
                 }
-            }
-            System.out.println("Connection closed");
-            socket.close();
-            in.close();
-        } catch (Exception e) {
-            System.out.println(e);
+            }).start();
+
+        } catch (IOException e) {
+            System.out.println("Error establishing server connection: " + e.getMessage());
         }
     }
 
@@ -104,7 +125,9 @@ public class BreakoutServer extends GraphicsProgram {
         renderBricksLeft();
         renderThemeSwitcher(true);
         createPaddle();
+        createClientPaddle();
         createBall();
+        createClientBall();
         renderStartMenu();
     }
 
@@ -113,6 +136,7 @@ public class BreakoutServer extends GraphicsProgram {
         while (turnsCount > 0 && aliveBricks > 0) {
             moveBall();
             checkCollisions();
+            sendPositionsToClient(0, 0);
             pause(DELAY);
         }
         if (turnsCount == 0) {
@@ -154,23 +178,52 @@ public class BreakoutServer extends GraphicsProgram {
         }
     }
 
+    private void sendPositionsToClient(double brickX, double brickY) {
+        try {
+            double paddleX = paddle.getX();
+            double ballX = ball.getX();
+            double ballY = ball.getY();
+            out.writeDouble(paddleX);
+            out.writeDouble(ballX);
+            out.writeDouble(ballY);
+            out.writeDouble(brickX);
+            out.writeDouble(brickY);
+        } catch (IOException e) {
+            System.out.println(e);
+        }
+    }
+
     private void createBall() {
         ball = new GOval(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
         ball.setFilled(true);
         add(ball);
     }
 
+    private void createClientBall() {
+        clientBall = new GOval(WIDTH / 2 - BALL_RADIUS + SEPERATOR_WIDTH + WIDTH, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
+        clientBall.setFilled(true);
+        add(clientBall);
+    }
+
     private void drawBricks() {
         double startingY = BRICK_Y_OFFSET;
         for (int i = 0; i < NBRICK_ROWS; i++) {
-            drawBrickRow(getBrickColor(i), startingY);
+            drawBrickRow(getBrickColor(i), startingY, false);
+            startingY += BRICK_HEIGHT + BRICK_SEP;
+        }
+        startingY = BRICK_Y_OFFSET;
+        for (int i = 0; i < NBRICK_ROWS; i++) {
+            drawBrickRow(getBrickColor(i), startingY, true);
             startingY += BRICK_HEIGHT + BRICK_SEP;
         }
     }
 
     // just draws one row of bricks, self-explanatory, no more comments needed
-    private void drawBrickRow(Color color, double y) {
+    private void drawBrickRow(Color color, double y, boolean isForClient) {
         double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
+        if (isForClient) {
+            x += WIDTH + SEPERATOR_WIDTH;
+        }
         for (int j = 0; j < NBRICKS_PER_ROW; j++) {
             GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
             brick.setFilled(true);
@@ -186,6 +239,12 @@ public class BreakoutServer extends GraphicsProgram {
         paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
         paddle.setFilled(true);
         add(paddle);
+    }
+
+    private void createClientPaddle() {
+        clientPaddle = new GRect((WIDTH - PADDLE_WIDTH) / 2 + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        clientPaddle.setFilled(true);
+        add(clientPaddle);
     }
 
 
@@ -286,8 +345,10 @@ public class BreakoutServer extends GraphicsProgram {
             aliveBricks--;
             bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
             vy = -vy;
+            sendPositionsToClient(collider.getX(), collider.getY());
         }
     }
+
 
     // Returns either NULL or object the ball is colliding
     private GObject getBallCollidingObject() {
@@ -377,4 +438,5 @@ public class BreakoutServer extends GraphicsProgram {
         add(startButton, startButtonX, startButtonY);
         add(startButtonLabel, startButtonLabelX, startButtonLabelY);
     }
+
 }

@@ -4,14 +4,20 @@ import acm.util.RandomGenerator;
 
 import java.awt.*;
 import java.awt.event.MouseEvent;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.UnknownHostException;
 
 public class BreakoutClient extends GraphicsProgram {
 
     public static final int DELAY = 7;
-    public static final int APPLICATION_WIDTH = 400;
+    public static final int SEPERATOR_WIDTH = 300;
+    private static final int WIDTH = 400;
+    public static final int APPLICATION_WIDTH = WIDTH * 2 + SEPERATOR_WIDTH;
     public static final int APPLICATION_HEIGHT = 600;
-    private static final int WIDTH = APPLICATION_WIDTH;
-    private static final int HEIGHT = APPLICATION_HEIGHT;
+    private static final int HEIGHT = 600;
     private static final int PADDLE_WIDTH = 60;
     private static final int PADDLE_HEIGHT = 10;
     private static final int PADDLE_Y_OFFSET = 30;
@@ -32,9 +38,13 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int START_BUTTON_HEIGHT = 50;
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
+    private static final int PORT = 5000;
+    private static final String ADDRESS = "192.168.1.188";
 
     private GRect paddle;
+    private GRect serverPaddle;
     private GOval ball;
+    private GOval serverBall;
     private double vx, vy = 3.0;
     private RandomGenerator rgen = RandomGenerator.getInstance();
     private double turnsCount = NTURNS;
@@ -47,15 +57,22 @@ public class BreakoutClient extends GraphicsProgram {
     private String startButtonText = "Start Game";
     private boolean gameStarted = false;
 
+    private Socket socket = null;
+    private DataInputStream input = null;
+    private DataOutputStream output = null;
+
 
     public void run() {
-        initGame();
-        addMouseListeners();
+        initGame();              // Set up the game environment
+        addMouseListeners();      // Set up controls
+        connectToServer(ADDRESS, PORT);  // Connect to the server
 
+        // Wait until the game starts
         while (!gameStarted) {
             pause(100);
         }
 
+        // Start the game loop once gameStarted is true
         gameLoop();
     }
 
@@ -67,8 +84,22 @@ public class BreakoutClient extends GraphicsProgram {
         renderBricksLeft();
         renderThemeSwitcher(true);
         createPaddle();
+        createServerPaddle();
         createBall();
+        createServerBall();
         renderStartMenu();
+    }
+
+    private void createServerBall() {
+        serverBall = new GOval(WIDTH / 2 - BALL_RADIUS + SEPERATOR_WIDTH + WIDTH, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
+        serverBall.setFilled(true);
+        add(serverBall);
+    }
+
+    private void createServerPaddle() {
+        serverPaddle = new GRect((WIDTH - PADDLE_WIDTH) / 2 + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        serverPaddle.setFilled(true);
+        add(serverPaddle);
     }
 
     // Each *frame* happens here
@@ -76,14 +107,88 @@ public class BreakoutClient extends GraphicsProgram {
         while (turnsCount > 0 && aliveBricks > 0) {
             moveBall();
             checkCollisions();
+            sendPositionsToServer(0, 0);  // New method to handle sending paddle position
             pause(DELAY);
         }
+
+        // Game ends: close resources
         if (turnsCount == 0) {
             handleGameLoss();
         } else {
             handleGameWin();
         }
         remove(ball);
+//        closeConnection();  // Close socket and streams when the game ends
+    }
+
+    private void sendPositionsToServer(double brickX, double brickY) {
+        try {
+            double paddleX = paddle.getX();
+            double ballX = ball.getX();        // Get ball's x coordinate
+            double ballY = ball.getY();        // Get ball's y coordinate
+
+            // Send the paddle and ball coordinates as a single message
+            output.writeDouble(paddleX);  // Send paddle X
+            output.writeDouble(ballX);    // Send ball X
+            output.writeDouble(ballY);    // Send ball Y
+            output.writeDouble(brickX);    // Send ball Y
+            output.writeDouble(brickY);    // Send ball Y
+        } catch (IOException e) {
+            System.out.println("Failed to send paddle position: " + e.getMessage());
+        }
+    }
+
+    private void closeConnection() {
+        try {
+            if (output != null) output.close();
+            if (socket != null) socket.close();
+            System.out.println("Connection closed.");
+        } catch (IOException e) {
+            System.out.println("Error closing connection: " + e.getMessage());
+        }
+    }
+
+    private void connectToServer(String address, int port) {
+        try {
+            socket = new Socket(address, port);
+            System.out.println("CONNECTED");
+
+            input = new DataInputStream(socket.getInputStream());
+            output = new DataOutputStream(socket.getOutputStream());
+
+            // Start a new thread for handling communication
+            new Thread(() -> {
+                while (true) {
+                    try {
+                        // Read game state data from the server
+                        double paddleX = input.readDouble();
+                        double ballX = input.readDouble();
+                        double ballY = input.readDouble();
+                        double brickX = input.readDouble();
+                        double brickY = input.readDouble();
+
+                        System.out.println(paddleX);
+                        // Update game objects based on received data
+                        GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
+                        if (currentEl != null) {
+                            remove(currentEl);
+                        }
+
+                        serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
+                        serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+
+                    } catch (IOException e) {
+                        System.out.println("Error in communication thread: " + e.getMessage());
+                        break;
+                    }
+                }
+            }).start();
+
+        } catch (UnknownHostException e) {
+            System.out.println("Unknown host: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("I/O error: " + e.getMessage());
+        }
     }
 
     // DVD screensaver like animation, but if it touches the bottom of the screen we record it as a *missed ball*
@@ -126,14 +231,22 @@ public class BreakoutClient extends GraphicsProgram {
     private void drawBricks() {
         double startingY = BRICK_Y_OFFSET;
         for (int i = 0; i < NBRICK_ROWS; i++) {
-            drawBrickRow(getBrickColor(i), startingY);
+            drawBrickRow(getBrickColor(i), startingY, false);
+            startingY += BRICK_HEIGHT + BRICK_SEP;
+        }
+        startingY = BRICK_Y_OFFSET;
+        for (int i = 0; i < NBRICK_ROWS; i++) {
+            drawBrickRow(getBrickColor(i), startingY, true);
             startingY += BRICK_HEIGHT + BRICK_SEP;
         }
     }
 
     // just draws one row of bricks, self-explanatory, no more comments needed
-    private void drawBrickRow(Color color, double y) {
+    private void drawBrickRow(Color color, double y, boolean isForClient) {
         double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
+        if (isForClient) {
+            x += WIDTH + SEPERATOR_WIDTH;
+        }
         for (int j = 0; j < NBRICKS_PER_ROW; j++) {
             GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
             brick.setFilled(true);
@@ -249,6 +362,7 @@ public class BreakoutClient extends GraphicsProgram {
             aliveBricks--;
             bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
             vy = -vy;
+            sendPositionsToServer(collider.getX(), collider.getY());
         }
     }
 
