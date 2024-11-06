@@ -28,6 +28,10 @@ public class BreakoutExtension extends GraphicsProgram {
     private static final int HEART_OFFSET = 10;
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
+    private static final int START_BUTTON_WIDTH = WIDTH / 3;
+    private static final int START_BUTTON_HEIGHT = 50;
+    private static final Color START_BUTTON_COLOR = Color.GREEN;
+    private static final Color startButtonLabelText = Color.WHITE;
 
     private GRect paddle;
     private GOval ball;
@@ -38,11 +42,20 @@ public class BreakoutExtension extends GraphicsProgram {
     private GLabel bricksLeft = null;
     private boolean isDarkModeEnabled = true;
     private GImage switcher;
+    private GRect startButton;
+    private GLabel startButtonLabel;
+    private String startButtonText = "Start Game";
+    private boolean gameStarted = false;
 
 
     public void run() {
         initGame();
         addMouseListeners();
+
+        while (!gameStarted) {
+            pause(100);
+        }
+
         gameLoop();
     }
 
@@ -55,7 +68,7 @@ public class BreakoutExtension extends GraphicsProgram {
         renderThemeSwitcher(true);
         createPaddle();
         createBall();
-        pause(2000);
+        renderStartMenu();
     }
 
     // Each *frame* happens here
@@ -148,7 +161,7 @@ public class BreakoutExtension extends GraphicsProgram {
     public void mouseMoved(MouseEvent e) {
         double x = e.getX() - PADDLE_WIDTH / 2;
         double paddleY = paddle.getY();
-        if (x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
+        if (gameStarted && x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
             paddle.setLocation(x, paddleY);
         }
     }
@@ -157,7 +170,12 @@ public class BreakoutExtension extends GraphicsProgram {
     public void mouseClicked(MouseEvent e) {
         double x = e.getX();
         double y = e.getY();
-        if (switcher.contains(x, y)) {
+
+        if (startButton.contains(x, y)) {
+            remove(startButton);
+            remove(startButtonLabel);
+            gameStarted = true;
+        } else if (switcher.contains(x, y)) {
             handleThemeChange();
         }
     }
@@ -306,5 +324,20 @@ public class BreakoutExtension extends GraphicsProgram {
         ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
+    }
+
+    private void renderStartMenu() {
+        startButton = new GRect(START_BUTTON_WIDTH, START_BUTTON_HEIGHT);
+        startButton.setFilled(true);
+        startButton.setColor(START_BUTTON_COLOR);
+        startButtonLabel = new GLabel(startButtonText);
+        startButtonLabel.setFont(new Font("Serif", Font.PLAIN, 20));
+        startButtonLabel.setColor(startButtonLabelText);
+        double startButtonX = (WIDTH - startButton.getWidth()) / 2;
+        double startButtonY = (HEIGHT - startButton.getHeight()) / 2;
+        double startButtonLabelX = startButtonX + (START_BUTTON_WIDTH - startButtonLabel.getWidth()) / 2;
+        double startButtonLabelY = startButtonY + (START_BUTTON_HEIGHT + startButtonLabel.getAscent() / 2) / 2;
+        add(startButton, startButtonX, startButtonY);
+        add(startButtonLabel, startButtonLabelX, startButtonLabelY);
     }
 }
