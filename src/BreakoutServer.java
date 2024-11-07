@@ -420,7 +420,9 @@ public class BreakoutServer extends GraphicsProgram {
         isDarkModeEnabled = !isDarkModeEnabled;
         renderThemeSwitcher(isDarkModeEnabled);
         ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        clientBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        clientPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
     }
 

@@ -39,7 +39,7 @@ public class BreakoutClient extends GraphicsProgram {
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
     private static final int PORT = 5000;
-    private static final String ADDRESS = "192.168.1.188";
+    private static final String ADDRESS = "192.168.67.49";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -436,7 +436,9 @@ public class BreakoutClient extends GraphicsProgram {
         isDarkModeEnabled = !isDarkModeEnabled;
         renderThemeSwitcher(isDarkModeEnabled);
         ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        serverBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        serverPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
     }
 
