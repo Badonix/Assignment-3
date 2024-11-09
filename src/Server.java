@@ -3,6 +3,7 @@
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -16,7 +17,7 @@ public class Server {
     public Server(int port) {
         // starts server and waits for a connection
         try {
-            server = new ServerSocket(port);
+            server = new ServerSocket(port, 50, InetAddress.getByName("0.0.0.0"));
             System.out.println("Server started");
 
             System.out.println("Waiting for a client ...");

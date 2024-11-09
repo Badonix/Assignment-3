@@ -39,7 +39,7 @@ public class BreakoutClient extends GraphicsProgram {
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
     private static final int PORT = 5000;
-    private static final String ADDRESS = "192.168.67.49";
+    private static final String ADDRESS = "172.20.10.2";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -156,7 +156,6 @@ public class BreakoutClient extends GraphicsProgram {
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
 
-            // Start a new thread for handling communication
             new Thread(() -> {
                 while (true) {
                     try {
@@ -189,6 +188,17 @@ public class BreakoutClient extends GraphicsProgram {
         } catch (IOException e) {
             System.out.println("I/O error: " + e.getMessage());
         }
+    }
+
+    // Method to display countdown on the client's side
+    private void displayCountdown(int count) {
+        // Implement your countdown display logic here
+        System.out.println("Client Countdown: " + count); // Temporary console output
+    }
+
+    // Method to start the game loop on the client
+    private void startGameLoop() {
+        gameStarted = true; // Ensure game starts
     }
 
     // DVD screensaver like animation, but if it touches the bottom of the screen we record it as a *missed ball*
@@ -285,9 +295,9 @@ public class BreakoutClient extends GraphicsProgram {
         double y = e.getY();
 
         if (startButton.contains(x, y)) {
-            remove(startButton);
-            remove(startButtonLabel);
-            gameStarted = true;
+//            remove(startButton);
+//            remove(startButtonLabel);
+//            gameStarted = true;
         } else if (switcher.contains(x, y)) {
             handleThemeChange();
         }

@@ -39,8 +39,7 @@ public class BreakoutServer extends GraphicsProgram {
     private static final int START_BUTTON_HEIGHT = 50;
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
-    private static final int PORT = 5000;
-    private static final String address = "127.0.0.1";
+    private static final int PORT = 6969;
 
     private GRect paddle;
     private GRect clientPaddle;
@@ -57,6 +56,7 @@ public class BreakoutServer extends GraphicsProgram {
     private GLabel startButtonLabel;
     private String startButtonText = "Start Game";
     private boolean gameStarted = false;
+    private GLabel counter;
 
     private Socket socket = null;
     private ServerSocket server = null;
@@ -270,7 +270,7 @@ public class BreakoutServer extends GraphicsProgram {
         if (startButton.contains(x, y)) {
             remove(startButton);
             remove(startButtonLabel);
-            gameStarted = true;
+            startCountdown(); // Start the countdown instead of directly starting the game
         } else if (switcher.contains(x, y)) {
             handleThemeChange();
         }
@@ -441,4 +441,30 @@ public class BreakoutServer extends GraphicsProgram {
         add(startButtonLabel, startButtonLabelX, startButtonLabelY);
     }
 
+    private void startCountdown() {
+        new Thread(() -> {
+            try {
+                for (int i = 3; i >= 0; i--) {
+                    out.writeInt(i);
+                    displayCountdown(i);
+                    Thread.sleep(1000);
+                }
+                gameStarted = true;
+                out.writeBoolean(true);
+            } catch (IOException | InterruptedException e) {
+                System.out.println("Error in countdown: " + e.getMessage());
+            }
+        }).start();
+    }
+
+    private void displayCountdown(int count) {
+        if (counter != null) {
+            remove(counter);
+        }
+        counter = new GLabel("" + count);
+        double counterX = WIDTH + SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
+        double counterY = HEIGHT / 2 - counter.getAscent() / 2;
+        counter.setFont(new Font("serif", Font.PLAIN, 25));
+        add(counter, counterX, counterY);
+    }
 }
