@@ -48,9 +48,6 @@ public class BreakoutClient extends GraphicsProgram {
     private GLabel bricksLeft = null;
     private boolean isDarkModeEnabled = true;
     private GImage switcher;
-    private GRect startButton;
-    private GLabel startButtonLabel;
-    private String startButtonText = "Start Game";
     private boolean gameStarted = false;
     private GLabel counter;
 
@@ -310,11 +307,7 @@ public class BreakoutClient extends GraphicsProgram {
         double x = e.getX();
         double y = e.getY();
 
-        if (startButton.contains(x, y)) {
-            remove(startButton);
-            remove(startButtonLabel);
-            gameStarted = true;
-        } else if (switcher.contains(x, y)) {
+        if (switcher.contains(x, y)) {
             handleThemeChange();
         }
     }
