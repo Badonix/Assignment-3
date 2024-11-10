@@ -34,12 +34,8 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int HEART_OFFSET = 10;
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
-    private static final int START_BUTTON_WIDTH = WIDTH / 3;
-    private static final int START_BUTTON_HEIGHT = 50;
-    private static final Color START_BUTTON_COLOR = Color.GREEN;
-    private static final Color startButtonLabelText = Color.WHITE;
-    private static final int PORT = 5000;
-    private static final String ADDRESS = "172.20.10.2";
+    private static final int PORT = 6969;
+    private static final String ADDRESS = "192.168.1.188";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -56,6 +52,7 @@ public class BreakoutClient extends GraphicsProgram {
     private GLabel startButtonLabel;
     private String startButtonText = "Start Game";
     private boolean gameStarted = false;
+    private GLabel counter;
 
     private Socket socket = null;
     private DataInputStream input = null;
@@ -87,7 +84,6 @@ public class BreakoutClient extends GraphicsProgram {
         createServerPaddle();
         createBall();
         createServerBall();
-        renderStartMenu();
     }
 
     private void createServerBall() {
@@ -118,7 +114,7 @@ public class BreakoutClient extends GraphicsProgram {
             handleGameWin();
         }
         remove(ball);
-//        closeConnection();  // Close socket and streams when the game ends
+        closeConnection();  // Close socket and streams when the game ends
     }
 
     private void sendPositionsToServer(double brickX, double brickY) {
@@ -157,29 +153,42 @@ public class BreakoutClient extends GraphicsProgram {
             output = new DataOutputStream(socket.getOutputStream());
 
             new Thread(() -> {
-                while (true) {
-                    try {
-                        // Read game state data from the server
-                        double paddleX = input.readDouble();
-                        double ballX = input.readDouble();
-                        double ballY = input.readDouble();
-                        double brickX = input.readDouble();
-                        double brickY = input.readDouble();
+                try {
+                    while (true) {
+                        if (input.available() > 0) {
+                            int countdown = input.readInt();
+                            displayCountdown(countdown);
 
-                        System.out.println(paddleX);
-                        // Update game objects based on received data
-                        GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
-                        if (currentEl != null) {
-                            remove(currentEl);
+                            if (countdown == 0) {
+                                boolean gameStarted = input.readBoolean();
+                                if (gameStarted) {
+                                    startGameLoop();
+                                }
+                                break;
+                            }
                         }
 
-                        serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
-                        serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+                        // After the countdown, read game state data from the server
+                        if (gameStarted) {
+                            double paddleX = input.readDouble();
+                            double ballX = input.readDouble();
+                            double ballY = input.readDouble();
+                            double brickX = input.readDouble();
+                            double brickY = input.readDouble();
 
-                    } catch (IOException e) {
-                        System.out.println("Error in communication thread: " + e.getMessage());
-                        break;
+                            System.out.println(paddleX);
+                            // Update game objects based on received data
+                            GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
+                            if (currentEl != null) {
+                                remove(currentEl);
+                            }
+
+                            serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
+                            serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+                        }
                     }
+                } catch (IOException e) {
+                    System.out.println("Error in communication thread: " + e.getMessage());
                 }
             }).start();
 
@@ -190,15 +199,22 @@ public class BreakoutClient extends GraphicsProgram {
         }
     }
 
-    // Method to display countdown on the client's side
     private void displayCountdown(int count) {
-        // Implement your countdown display logic here
-        System.out.println("Client Countdown: " + count); // Temporary console output
+        if (counter != null) {
+            remove(counter);
+        }
+
+        counter = new GLabel("" + count);
+        double centerX = WIDTH + SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
+        double centerY = HEIGHT / 2 - counter.getAscent() / 2;
+        counter.setFont(new Font("serif", Font.PLAIN, 25));
+        add(counter, centerX, centerY);
     }
 
     // Method to start the game loop on the client
     private void startGameLoop() {
         gameStarted = true; // Ensure game starts
+        // Begin client game loop logic here
     }
 
     // DVD screensaver like animation, but if it touches the bottom of the screen we record it as a *missed ball*
@@ -295,9 +311,9 @@ public class BreakoutClient extends GraphicsProgram {
         double y = e.getY();
 
         if (startButton.contains(x, y)) {
-//            remove(startButton);
-//            remove(startButtonLabel);
-//            gameStarted = true;
+            remove(startButton);
+            remove(startButtonLabel);
+            gameStarted = true;
         } else if (switcher.contains(x, y)) {
             handleThemeChange();
         }
@@ -450,20 +466,5 @@ public class BreakoutClient extends GraphicsProgram {
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         serverPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
-    }
-
-    private void renderStartMenu() {
-        startButton = new GRect(START_BUTTON_WIDTH, START_BUTTON_HEIGHT);
-        startButton.setFilled(true);
-        startButton.setColor(START_BUTTON_COLOR);
-        startButtonLabel = new GLabel(startButtonText);
-        startButtonLabel.setFont(new Font("Serif", Font.PLAIN, 20));
-        startButtonLabel.setColor(startButtonLabelText);
-        double startButtonX = (WIDTH - startButton.getWidth()) / 2;
-        double startButtonY = (HEIGHT - startButton.getHeight()) / 2;
-        double startButtonLabelX = startButtonX + (START_BUTTON_WIDTH - startButtonLabel.getWidth()) / 2;
-        double startButtonLabelY = startButtonY + (START_BUTTON_HEIGHT + startButtonLabel.getAscent() / 2) / 2;
-        add(startButton, startButtonX, startButtonY);
-        add(startButtonLabel, startButtonLabelX, startButtonLabelY);
     }
 }
