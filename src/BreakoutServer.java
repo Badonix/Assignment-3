@@ -112,10 +112,8 @@ public class BreakoutServer extends GraphicsProgram {
                             boolean statusMessage = in.readBoolean();
                             if (statusMessage) {
                                 handleGameLoss(0);
-                                closeConnection();
                             } else {
                                 handleGameWin(0);
-                                closeConnection();
                             }
 
                         }
@@ -155,11 +153,11 @@ public class BreakoutServer extends GraphicsProgram {
             pause(DELAY);
         }
         if (turnsCount == 0) {
-            handleGameLoss(1);
             sendLoseEvent();
+            handleGameLoss(1);
         } else if (aliveBricks == 0) {
-            handleGameWin(1);
             sendWinEvent();
+            handleGameWin(1);
         }
         remove(ball);
     }
@@ -330,6 +328,7 @@ public class BreakoutServer extends GraphicsProgram {
         } else {
             renderTextInCenter("Oponnent won :((", Color.RED, 30);
         }
+        closeConnection();
     }
 
     private void handleGameWin(int iWon) {
@@ -339,6 +338,7 @@ public class BreakoutServer extends GraphicsProgram {
         } else {
             renderTextInCenter("Oponnent lostt :))", Color.GREEN, 30);
         }
+        closeConnection();
     }
 
     private void sendWinEvent() {
@@ -478,6 +478,7 @@ public class BreakoutServer extends GraphicsProgram {
         renderThemeSwitcher(isDarkModeEnabled);
         ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         clientBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         clientPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
@@ -507,6 +508,7 @@ public class BreakoutServer extends GraphicsProgram {
                     Thread.sleep(1000);
                 }
                 gameStarted = true;
+                remove(counter);
                 out.writeBoolean(true);
             } catch (IOException | InterruptedException e) {
                 System.out.println("Error in countdown: " + e.getMessage());
@@ -521,6 +523,7 @@ public class BreakoutServer extends GraphicsProgram {
         counter = new GLabel("" + count);
         double counterX = WIDTH + SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
         double counterY = HEIGHT / 2 - counter.getAscent() / 2;
+        counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         counter.setFont(new Font("serif", Font.PLAIN, 25));
         add(counter, counterX, counterY);
     }
