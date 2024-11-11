@@ -35,7 +35,7 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
     private static final int PORT = 6969;
-    private static final String ADDRESS = "192.168.79.225";
+    private static final String ADDRESS = "192.168.1.188";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -104,11 +104,12 @@ public class BreakoutClient extends GraphicsProgram {
             pause(DELAY);
         }
 
-        // Game ends: close resources
         if (turnsCount == 0) {
             handleGameLoss(1);
-        } else {
+            sendLoseEent();
+        } else if (aliveBricks == 0) {
             handleGameWin(1);
+            sendWinEvent();
         }
         remove(ball);
     }
@@ -187,9 +188,11 @@ public class BreakoutClient extends GraphicsProgram {
                                 if (statusMessage) {
                                     System.out.println("The other player won the game!");
                                     handleGameLoss(0);
+                                    closeConnection();
                                 } else {
                                     System.out.println("The other player lost the game!");
                                     handleGameWin(0);
+                                    closeConnection();
                                 }
                             }
                         }
@@ -341,12 +344,25 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void handleGameLoss(int iLost) {
-        // If opponent iWon whoWon is 0
+        removeAll();
         if (iLost == 1) {
             renderTextInCenter("You Lost :(((", Color.RED, 30);
         } else {
             renderTextInCenter("Oponnent won :((", Color.RED, 30);
         }
+    }
+
+    private void handleGameWin(int iWon) {
+
+        removeAll();
+        if (iWon == 1) {
+            renderTextInCenter("You WON :))", Color.GREEN, 30);
+        } else {
+            renderTextInCenter("Oponnent lostt :))", Color.GREEN, 30);
+        }
+    }
+
+    private void sendLoseEent() {
         try {
             output.writeInt(1);
             output.writeBoolean(false);
@@ -355,14 +371,7 @@ public class BreakoutClient extends GraphicsProgram {
         }
     }
 
-    private void handleGameWin(int iWon) {
-
-        if (iWon == 1) {
-            renderTextInCenter("You WON :))", Color.RED, 30);
-        } else {
-            renderTextInCenter("Oponnent lostt :))", Color.RED, 30);
-        }
-        renderTextInCenter("You WONN :))", Color.GREEN, 30);
+    private void sendWinEvent() {
         try {
             output.writeInt(1);
             output.writeBoolean(true);
@@ -453,8 +462,8 @@ public class BreakoutClient extends GraphicsProgram {
         GLabel text = new GLabel(str);
         text.setFont(new Font("Serif", Font.PLAIN, fontSize));
         text.setColor(color);
-        double x = (WIDTH - text.getWidth()) / 2;
-        double y = (HEIGHT - text.getAscent()) / 2;
+        double x = (APPLICATION_WIDTH - text.getWidth()) / 2;
+        double y = (APPLICATION_HEIGHT - text.getAscent()) / 2;
         add(text, x, y);
     }
 
