@@ -117,15 +117,14 @@ public class BreakoutClient extends GraphicsProgram {
     private void sendPositionsToServer(double brickX, double brickY) {
         try {
             double paddleX = paddle.getX();
-            double ballX = ball.getX();        // Get ball's x coordinate
-            double ballY = ball.getY();        // Get ball's y coordinate
+            double ballX = ball.getX();
+            double ballY = ball.getY();
 
-            // Send the paddle and ball coordinates as a single message
-            output.writeDouble(paddleX);  // Send paddle X
-            output.writeDouble(ballX);    // Send ball X
-            output.writeDouble(ballY);    // Send ball Y
-            output.writeDouble(brickX);    // Send ball Y
-            output.writeDouble(brickY);    // Send ball Y
+            output.writeDouble(paddleX);
+            output.writeDouble(ballX);
+            output.writeDouble(ballY);
+            output.writeDouble(brickX);
+            output.writeDouble(brickY);
         } catch (IOException e) {
             System.out.println("Failed to send paddle position: " + e.getMessage());
         }
@@ -168,25 +167,19 @@ public class BreakoutClient extends GraphicsProgram {
 
                     while (true) {
 
-                        // After the countdown, read game state data from the server
                         if (gameStarted) {
                             double paddleX = input.readDouble();
                             double ballX = input.readDouble();
                             double ballY = input.readDouble();
                             double brickX = input.readDouble();
                             double brickY = input.readDouble();
-
-                            System.out.println(paddleX);
                             // Update game objects based on received data
                             GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
                             if (currentEl != null) {
                                 remove(currentEl);
                             }
-
-                            System.out.println(paddleX);
                             serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
                             serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
-
                         }
                     }
                 } catch (IOException e) {
