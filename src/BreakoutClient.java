@@ -35,7 +35,7 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
     private static final int PORT = 6969;
-    private static final String ADDRESS = "192.168.65.177";
+    private static final String ADDRESS = "192.168.79.225";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -106,12 +106,11 @@ public class BreakoutClient extends GraphicsProgram {
 
         // Game ends: close resources
         if (turnsCount == 0) {
-            handleGameLoss();
+            handleGameLoss(1);
         } else {
-            handleGameWin();
+            handleGameWin(1);
         }
         remove(ball);
-        closeConnection();  // Close socket and streams when the game ends
     }
 
     private void sendPositionsToServer(double brickX, double brickY) {
@@ -119,7 +118,7 @@ public class BreakoutClient extends GraphicsProgram {
             double paddleX = paddle.getX();
             double ballX = ball.getX();
             double ballY = ball.getY();
-
+            output.writeInt(0);
             output.writeDouble(paddleX);
             output.writeDouble(ballX);
             output.writeDouble(ballY);
@@ -168,18 +167,31 @@ public class BreakoutClient extends GraphicsProgram {
                     while (true) {
 
                         if (gameStarted) {
-                            double paddleX = input.readDouble();
-                            double ballX = input.readDouble();
-                            double ballY = input.readDouble();
-                            double brickX = input.readDouble();
-                            double brickY = input.readDouble();
-                            // Update game objects based on received data
-                            GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
-                            if (currentEl != null) {
-                                remove(currentEl);
+                            int messageType = input.readInt();
+                            if (messageType == 0) {
+
+                                double paddleX = input.readDouble();
+                                double ballX = input.readDouble();
+                                double ballY = input.readDouble();
+                                double brickX = input.readDouble();
+                                double brickY = input.readDouble();
+                                // Update game objects based on received data
+                                GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
+                                if (currentEl != null) {
+                                    remove(currentEl);
+                                }
+                                serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
+                                serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+                            } else if (messageType == 1) {
+                                boolean statusMessage = input.readBoolean();
+                                if (statusMessage) {
+                                    System.out.println("The other player won the game!");
+                                    handleGameLoss(0);
+                                } else {
+                                    System.out.println("The other player lost the game!");
+                                    handleGameWin(0);
+                                }
                             }
-                            serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
-                            serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
                         }
                     }
                 } catch (IOException e) {
@@ -328,12 +340,35 @@ public class BreakoutClient extends GraphicsProgram {
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
     }
 
-    private void handleGameLoss() {
-        renderTextInCenter("You Lost :(((", Color.RED, 30);
+    private void handleGameLoss(int iLost) {
+        // If opponent iWon whoWon is 0
+        if (iLost == 1) {
+            renderTextInCenter("You Lost :(((", Color.RED, 30);
+        } else {
+            renderTextInCenter("Oponnent won :((", Color.RED, 30);
+        }
+        try {
+            output.writeInt(1);
+            output.writeBoolean(false);
+        } catch (IOException e) {
+            System.out.println(e);
+        }
     }
 
-    private void handleGameWin() {
+    private void handleGameWin(int iWon) {
+
+        if (iWon == 1) {
+            renderTextInCenter("You WON :))", Color.RED, 30);
+        } else {
+            renderTextInCenter("Oponnent lostt :))", Color.RED, 30);
+        }
         renderTextInCenter("You WONN :))", Color.GREEN, 30);
+        try {
+            output.writeInt(1);
+            output.writeBoolean(true);
+        } catch (IOException e) {
+            System.out.println(e);
+        }
     }
 
     /*

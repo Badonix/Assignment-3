@@ -90,20 +90,35 @@ public class BreakoutServer extends GraphicsProgram {
             new Thread(() -> {
                 while (true) {
                     try {
-                        // Read data from the client
-                        double paddleX = in.readDouble();
-                        double ballX = in.readDouble();
-                        double ballY = in.readDouble();
-                        double brickX = in.readDouble();
-                        double brickY = in.readDouble();
+                        int messageType = in.readInt(); // Read the prefix to determine message type
+                        if (messageType == 0) {
 
-                        GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
-                        if (currentEl != null) {
-                            remove(currentEl);
+                            double paddleX = in.readDouble();
+                            double ballX = in.readDouble();
+                            double ballY = in.readDouble();
+                            double brickX = in.readDouble();
+                            double brickY = in.readDouble();
+
+                            GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
+                            if (currentEl != null) {
+                                remove(currentEl);
+                            }
+
+                            clientPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
+                            clientBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+
+                        } else if (messageType == 1) {
+
+                            boolean statusMessage = in.readBoolean();
+                            if (statusMessage) {
+                                handleGameLoss(0);
+                                System.out.println("The other player won the game!");
+                            } else {
+                                handleGameWin(0);
+                                System.out.println("The other player lost the game!");
+                            }
+
                         }
-
-                        clientPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
-                        clientBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
 
                     } catch (IOException e) {
                         System.out.println("Error in communication thread: " + e.getMessage());
@@ -140,11 +155,21 @@ public class BreakoutServer extends GraphicsProgram {
             pause(DELAY);
         }
         if (turnsCount == 0) {
-            handleGameLoss();
+            handleGameLoss(1);
         } else {
-            handleGameWin();
+            handleGameWin(1);
         }
         remove(ball);
+    }
+
+    private void closeConnection() {
+        try {
+            if (out != null) out.close();
+            if (socket != null) socket.close();
+            System.out.println("Connection closed.");
+        } catch (IOException e) {
+            System.out.println("Error closing connection: " + e.getMessage());
+        }
     }
 
     // DVD screensaver like animation, but if it touches the bottom of the screen we record it as a *missed ball*
@@ -183,6 +208,7 @@ public class BreakoutServer extends GraphicsProgram {
             double paddleX = paddle.getX();
             double ballX = ball.getX();
             double ballY = ball.getY();
+            out.writeInt(0);             // Prefix to indicate game data
             out.writeDouble(paddleX);
             out.writeDouble(ballX);
             out.writeDouble(ballY);
@@ -294,12 +320,35 @@ public class BreakoutServer extends GraphicsProgram {
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
     }
 
-    private void handleGameLoss() {
-        renderTextInCenter("You Lost :(((", Color.RED, 30);
+    private void handleGameLoss(int iLost) {
+        // If opponent iWon whoWon is 0
+        if (iLost == 1) {
+            renderTextInCenter("You Lost :(((", Color.RED, 30);
+        } else {
+            renderTextInCenter("Oponnent won :((", Color.RED, 30);
+        }
+        try {
+            out.writeInt(1);
+            out.writeBoolean(false);
+        } catch (IOException e) {
+            System.out.println(e);
+        }
     }
 
-    private void handleGameWin() {
+    private void handleGameWin(int iWon) {
+
+        if (iWon == 1) {
+            renderTextInCenter("You WON :))", Color.RED, 30);
+        } else {
+            renderTextInCenter("Oponnent lostt :))", Color.RED, 30);
+        }
         renderTextInCenter("You WONN :))", Color.GREEN, 30);
+        try {
+            out.writeInt(1);
+            out.writeBoolean(true);
+        } catch (IOException e) {
+            System.out.println(e);
+        }
     }
 
     /*
