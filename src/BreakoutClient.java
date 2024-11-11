@@ -35,7 +35,7 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
     private static final int PORT = 6969;
-    private static final String ADDRESS = "192.168.1.188";
+    private static final String ADDRESS = "192.168.65.177";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -164,6 +164,9 @@ public class BreakoutClient extends GraphicsProgram {
                                 break;
                             }
                         }
+                    }
+
+                    while (true) {
 
                         // After the countdown, read game state data from the server
                         if (gameStarted) {
@@ -180,8 +183,10 @@ public class BreakoutClient extends GraphicsProgram {
                                 remove(currentEl);
                             }
 
+                            System.out.println(paddleX);
                             serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
                             serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
+
                         }
                     }
                 } catch (IOException e) {
