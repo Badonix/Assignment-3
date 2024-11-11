@@ -57,6 +57,8 @@ public class BreakoutServer extends GraphicsProgram {
     private String startButtonText = "Start Game";
     private boolean gameStarted = false;
     private GLabel counter;
+    private GLine seperator1;
+    private GLine seperator2;
 
     private Socket socket = null;
     private ServerSocket server = null;
@@ -100,7 +102,7 @@ public class BreakoutServer extends GraphicsProgram {
                             double brickY = in.readDouble();
 
                             GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
-                            if (currentEl != null) {
+                            if (currentEl != null && currentEl instanceof GRect) {
                                 remove(currentEl);
                             }
 
@@ -142,6 +144,7 @@ public class BreakoutServer extends GraphicsProgram {
         createBall();
         createClientBall();
         renderStartMenu();
+        renderSeperator();
     }
 
     // Each *frame* happens here
@@ -453,7 +456,7 @@ public class BreakoutServer extends GraphicsProgram {
         bricksLeft.setFont(new Font("Serif", Font.PLAIN, 17));
         bricksLeft.setColor(Color.ORANGE);
         bricksLeft.sendToFront();
-        double x = WIDTH - bricksLeft.getWidth();
+        double x = WIDTH - bricksLeft.getWidth() - 20;
         double y = HEART_OFFSET + bricksLeft.getAscent() / 2;
         add(bricksLeft, x, y);
     }
@@ -478,8 +481,12 @@ public class BreakoutServer extends GraphicsProgram {
         renderThemeSwitcher(isDarkModeEnabled);
         ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         clientBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        if (counter != null) {
+            counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        }
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        seperator1.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        seperator2.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         clientPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
     }
@@ -491,7 +498,7 @@ public class BreakoutServer extends GraphicsProgram {
         startButtonLabel = new GLabel(startButtonText);
         startButtonLabel.setFont(new Font("Serif", Font.PLAIN, 20));
         startButtonLabel.setColor(startButtonLabelText);
-        double startButtonX = (WIDTH - startButton.getWidth()) / 2;
+        double startButtonX = (APPLICATION_WIDTH - startButton.getWidth()) / 2;
         double startButtonY = (HEIGHT - startButton.getHeight()) / 2;
         double startButtonLabelX = startButtonX + (START_BUTTON_WIDTH - startButtonLabel.getWidth()) / 2;
         double startButtonLabelY = startButtonY + (START_BUTTON_HEIGHT + startButtonLabel.getAscent() / 2) / 2;
@@ -526,5 +533,12 @@ public class BreakoutServer extends GraphicsProgram {
         counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         counter.setFont(new Font("serif", Font.PLAIN, 25));
         add(counter, counterX, counterY);
+    }
+
+    private void renderSeperator() {
+        seperator1 = new GLine(WIDTH, 0, WIDTH, HEIGHT);
+        seperator2 = new GLine(WIDTH + SEPERATOR_WIDTH, 0, WIDTH + SEPERATOR_WIDTH, HEIGHT);
+        add(seperator1);
+        add(seperator2);
     }
 }

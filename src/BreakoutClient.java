@@ -50,6 +50,8 @@ public class BreakoutClient extends GraphicsProgram {
     private GImage switcher;
     private boolean gameStarted = false;
     private GLabel counter;
+    private GLine seperator1;
+    private GLine seperator2;
 
     private Socket socket = null;
     private DataInputStream input = null;
@@ -81,6 +83,7 @@ public class BreakoutClient extends GraphicsProgram {
         createServerPaddle();
         createBall();
         createServerBall();
+        renderSeperator();
     }
 
     private void createServerBall() {
@@ -179,7 +182,7 @@ public class BreakoutClient extends GraphicsProgram {
                                 double brickY = input.readDouble();
                                 // Update game objects based on received data
                                 GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
-                                if (currentEl != null) {
+                                if (currentEl != null && currentEl instanceof GRect) {
                                     remove(currentEl);
                                 }
                                 serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
@@ -500,9 +503,20 @@ public class BreakoutClient extends GraphicsProgram {
         renderThemeSwitcher(isDarkModeEnabled);
         ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         serverBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        if (counter != null) {
+            counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        }
+        seperator1.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        seperator2.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         serverPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
+    }
+
+    private void renderSeperator() {
+        seperator1 = new GLine(WIDTH, 0, WIDTH, HEIGHT);
+        seperator2 = new GLine(WIDTH + SEPERATOR_WIDTH, 0, WIDTH + SEPERATOR_WIDTH, HEIGHT);
+        add(seperator1);
+        add(seperator2);
     }
 }
