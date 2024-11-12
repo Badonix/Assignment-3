@@ -10,7 +10,7 @@ import java.awt.event.MouseEvent;
 
 public class Breakout extends GraphicsProgram {
 
-    public static final int DELAY = 5;
+    public static final int DELAY = 7;
     public static final int APPLICATION_WIDTH = 400;
     public static final int APPLICATION_HEIGHT = 600;
     private static final int WIDTH = APPLICATION_WIDTH;
@@ -124,9 +124,12 @@ public class Breakout extends GraphicsProgram {
 
     // Just setting the paddleX based on mouse x
     public void mouseMoved(MouseEvent e) {
+        if (isGameOver()) {
+            return;
+        }
         double x = e.getX() - PADDLE_WIDTH / 2;
         double paddleY = paddle.getY();
-        if (x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
+        if (x >= 0 && x + PADDLE_WIDTH <= WIDTH) {
             paddle.setLocation(x, paddleY);
         }
     }
@@ -141,6 +144,8 @@ public class Breakout extends GraphicsProgram {
 
     // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
     private void handlePaddleKick() {
+
+        // vy must be based on absolute volume because we want the vy to be always negative, it was getting stuck in paddle coz it was changing the direcion all the time
         vy = -Math.abs(vy);
         double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
@@ -200,6 +205,7 @@ public class Breakout extends GraphicsProgram {
     }
 
     // Returns either NULL or object the ball is colliding
+    // I tried checking the 2 corners of each side but it didnt work well
     private GObject getBallCollidingObject() {
         double leftX = ball.getX();
         double rightX = leftX + BALL_RADIUS * 2;

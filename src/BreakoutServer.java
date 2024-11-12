@@ -189,10 +189,6 @@ public class BreakoutServer extends GraphicsProgram {
     }
 
 
-    /*
-        GAME INIT
-     */
-
     private void renderHearts() {
         double y = 0;
         double x = HEART_OFFSET;
