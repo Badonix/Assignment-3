@@ -43,8 +43,8 @@ public class BreakoutClient extends GraphicsProgram {
     private GOval serverBall;
     private double vx, vy = 3.0;
     private RandomGenerator rgen = RandomGenerator.getInstance();
-    private double turnsCount = NTURNS;
-    private double aliveBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
+    private int turnsCount = NTURNS;
+    private int aliveBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
     private GLabel bricksLeft = null;
     private boolean isDarkModeEnabled = true;
     private GImage switcher;
@@ -82,17 +82,6 @@ public class BreakoutClient extends GraphicsProgram {
         renderSeperator();
     }
 
-    private void createServerBall() {
-        serverBall = new GOval(WIDTH / 2 - BALL_RADIUS + SEPERATOR_WIDTH + WIDTH, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
-        serverBall.setFilled(true);
-        add(serverBall);
-    }
-
-    private void createServerPaddle() {
-        serverPaddle = new GRect((WIDTH - PADDLE_WIDTH) / 2 + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
-        serverPaddle.setFilled(true);
-        add(serverPaddle);
-    }
 
     // Each *frame* happens here
     private void gameLoop() {
@@ -102,12 +91,9 @@ public class BreakoutClient extends GraphicsProgram {
             sendPositionsToServer(0, 0);
             pause(DELAY);
         }
-
         if (turnsCount == 0) {
-            sendLoseEvent();
             handleGameLoss(1);
         } else if (aliveBricks == 0) {
-            sendWinEvent();
             handleGameWin(1);
         }
         remove(ball);
@@ -140,6 +126,7 @@ public class BreakoutClient extends GraphicsProgram {
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
 
+            // We need new thread so that gameloop doesn't stop
             new Thread(() -> {
                 handleCountdownEvent();
                 receiveData();
@@ -246,7 +233,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     // --------------- HELPERS ------------------
 
-    // Method to start the game loop on the client
+    // probably didnt need separate method
     private void startGameLoop() {
         gameStarted = true;
     }
@@ -393,6 +380,7 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void handleGameLoss(int iLost) {
+        sendLoseEvent();
         removeAll();
         if (iLost == 1) {
             renderTextInCenter("You Lost :(((", Color.RED, 30);
@@ -403,6 +391,7 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void handleGameWin(int iWon) {
+        sendWinEvent();
         removeAll();
         if (iWon == 1) {
             renderTextInCenter("You WON :))", Color.GREEN, 30);
@@ -540,5 +529,17 @@ public class BreakoutClient extends GraphicsProgram {
         counter.setFont(new Font("serif", Font.PLAIN, 25));
         counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         add(counter, centerX, centerY);
+    }
+
+    private void createServerBall() {
+        serverBall = new GOval(WIDTH / 2 - BALL_RADIUS + SEPERATOR_WIDTH + WIDTH, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
+        serverBall.setFilled(true);
+        add(serverBall);
+    }
+
+    private void createServerPaddle() {
+        serverPaddle = new GRect((WIDTH - PADDLE_WIDTH) / 2 + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        serverPaddle.setFilled(true);
+        add(serverPaddle);
     }
 }
