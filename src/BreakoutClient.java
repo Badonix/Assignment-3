@@ -62,6 +62,7 @@ public class BreakoutClient extends GraphicsProgram {
     private DataOutputStream output = null;
 
     private double vx, vy = 3.0;
+    private boolean connectionActive = false;
 
     public void run() {
         initGame();
@@ -89,7 +90,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
-        while (turnsCount > 0 && aliveBricks > 0) {
+        while (turnsCount > 0 && aliveBricks > 0 && connectionActive) {
             moveBall();
             checkCollisions();
             sendPositionsToServer(0, 0);
@@ -118,7 +119,8 @@ public class BreakoutClient extends GraphicsProgram {
             output.writeDouble(brickX);
             output.writeDouble(brickY);
         } catch (IOException e) {
-            System.out.println("Failed to send data: " + e.getMessage());
+            closeConnection();
+            return;
         }
     }
 
@@ -126,6 +128,7 @@ public class BreakoutClient extends GraphicsProgram {
         try {
             socket = new Socket(ADDRESS, PORT);
             System.out.println("CONNECTED");
+            connectionActive = true;
 
             input = new DataInputStream(socket.getInputStream());
             output = new DataOutputStream(socket.getOutputStream());
@@ -147,6 +150,7 @@ public class BreakoutClient extends GraphicsProgram {
         try {
             if (output != null) output.close();
             if (socket != null) socket.close();
+            connectionActive = false;
             System.out.println("Connection closed.");
         } catch (IOException e) {
             System.out.println("Error closing connection: " + e.getMessage());
@@ -168,7 +172,8 @@ public class BreakoutClient extends GraphicsProgram {
                     }
                 }
             } catch (IOException e) {
-                System.out.println(e);
+                closeConnection();
+                return;
             }
         }
     }
@@ -187,6 +192,7 @@ public class BreakoutClient extends GraphicsProgram {
             output.writeInt(1);
             output.writeBoolean(false);
         } catch (IOException e) {
+            closeConnection();
             System.out.println(e);
         }
     }
@@ -196,6 +202,7 @@ public class BreakoutClient extends GraphicsProgram {
             output.writeInt(1);
             output.writeBoolean(true);
         } catch (IOException e) {
+            closeConnection();
             System.out.println(e);
         }
     }

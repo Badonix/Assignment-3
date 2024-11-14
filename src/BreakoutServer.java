@@ -65,6 +65,8 @@ public class BreakoutServer extends GraphicsProgram {
     private DataInputStream in = null;
     private DataOutputStream out = null;
 
+    private boolean connectionActive = false;
+
 
     public void run() {
         initGame();
@@ -92,7 +94,7 @@ public class BreakoutServer extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
-        while (turnsCount > 0 && aliveBricks > 0) {
+        while (turnsCount > 0 && aliveBricks > 0 && connectionActive) {
             moveBall();
             checkCollisions();
             sendPositionsToClient(0, 0);
@@ -114,6 +116,7 @@ public class BreakoutServer extends GraphicsProgram {
             System.out.println("Waiting for connection...");
             socket = server.accept();
             System.out.println("Connection accepted");
+            connectionActive = true;
 
             in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             out = new DataOutputStream(socket.getOutputStream());
@@ -131,6 +134,7 @@ public class BreakoutServer extends GraphicsProgram {
             }).start();
 
         } catch (IOException e) {
+            closeConnection();
             System.out.println("Error establishing server connection: " + e.getMessage());
         }
     }
@@ -182,6 +186,7 @@ public class BreakoutServer extends GraphicsProgram {
             out.writeDouble(brickY);
         } catch (IOException e) {
             System.out.println(e);
+            closeConnection();
         }
     }
 
@@ -190,6 +195,7 @@ public class BreakoutServer extends GraphicsProgram {
             out.writeInt(1);
             out.writeBoolean(true);
         } catch (IOException e) {
+            closeConnection();
             System.out.println(e);
         }
     }
@@ -199,6 +205,7 @@ public class BreakoutServer extends GraphicsProgram {
             out.writeInt(1);
             out.writeBoolean(false);
         } catch (IOException e) {
+            closeConnection();
             System.out.println(e);
         }
     }
@@ -207,6 +214,7 @@ public class BreakoutServer extends GraphicsProgram {
         try {
             if (out != null) out.close();
             if (socket != null) socket.close();
+            connectionActive = false;
             System.out.println("Connection closed.");
         } catch (IOException e) {
             System.out.println("Error closing connection: " + e.getMessage());
@@ -272,7 +280,7 @@ public class BreakoutServer extends GraphicsProgram {
                 remove(counter);
                 out.writeBoolean(true);
             } catch (IOException | InterruptedException e) {
-                System.out.println("Error in countdown: " + e.getMessage());
+                closeConnection();
             }
         }).start();
     }
