@@ -174,7 +174,6 @@ public class BreakoutClient extends GraphicsProgram {
                         if (gameStarted) {
                             int messageType = input.readInt();
                             if (messageType == 0) {
-
                                 double paddleX = input.readDouble();
                                 double ballX = input.readDouble();
                                 double ballY = input.readDouble();
