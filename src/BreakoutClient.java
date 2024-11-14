@@ -34,30 +34,34 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int HEART_OFFSET = 10;
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
-    private static final int PORT = 6969;
-    private static final String ADDRESS = "192.168.1.148";
+    private int turnsCount = NTURNS;
+    private int aliveBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
+    private boolean isDarkModeEnabled = true;
+    private boolean gameStarted = false;
 
+    // GObjects
     private GRect paddle;
     private GRect serverPaddle;
     private GOval ball;
     private GOval serverBall;
-    private double vx, vy = 3.0;
-    private RandomGenerator rgen = RandomGenerator.getInstance();
-    private int turnsCount = NTURNS;
-    private int aliveBricks = NBRICK_ROWS * NBRICKS_PER_ROW;
-    private GLabel bricksLeft = null;
-    private boolean isDarkModeEnabled = true;
     private GImage switcher;
-    private boolean gameStarted = false;
-    private GLabel counter;
     private GLine seperator1;
     private GLine seperator2;
 
-    // socket things
+    // Labels
+    private GLabel bricksLeft = null;
+    private GLabel counter;
+
+    private RandomGenerator rgen = RandomGenerator.getInstance();
+
+    // Network things
+    private static final int PORT = 6969;
+    private static final String ADDRESS = "192.168.1.148";
     private Socket socket = null;
     private DataInputStream input = null;
     private DataOutputStream output = null;
 
+    private double vx, vy = 3.0;
 
     public void run() {
         initGame();
@@ -79,7 +83,7 @@ public class BreakoutClient extends GraphicsProgram {
         createServerPaddle();
         createBall();
         createServerBall();
-        renderSeperator();
+        renderSeparator();
     }
 
 
@@ -213,7 +217,7 @@ public class BreakoutClient extends GraphicsProgram {
     // --------------- LISTENERS ---------------------
     @Override
     public void mouseMoved(MouseEvent e) {
-        double x = e.getX() - PADDLE_WIDTH / 2;
+        double x = e.getX() - (double) PADDLE_WIDTH / 2;
         double paddleY = paddle.getY();
         if (gameStarted && x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
             paddle.setLocation(x, paddleY);
@@ -258,7 +262,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     // Reset the ball to center
     private void resetBall() {
-        ball.setLocation(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS);
+        ball.setLocation((double) WIDTH / 2 - BALL_RADIUS, (double) HEIGHT / 2 - BALL_RADIUS);
         vy = Math.abs(vy);
         setRandomVx();
         pause(2000);
@@ -272,7 +276,7 @@ public class BreakoutClient extends GraphicsProgram {
         GObject collider = getBallCollidingObject();
         if (collider == paddle) {
             handlePaddleKick();
-        } else if (collider != null && collider instanceof GRect) {
+        } else if (collider instanceof GRect) {
             remove(collider);
             aliveBricks--;
             bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
@@ -333,8 +337,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     private GObject getCurrentHeart() {
         double x = HEART_OFFSET + (turnsCount - 1) * (HEART_WIDTH + HEART_GAP) + HEART_WIDTH / 2;
-        GObject heart = getElementAt(x, HEART_WIDTH / 2);
-        return heart;
+        return getElementAt(x, HEART_WIDTH / 2);
     }
 
 
@@ -375,7 +378,7 @@ public class BreakoutClient extends GraphicsProgram {
     // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
     private void handlePaddleKick() {
         vy = -Math.abs(vy);
-        double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
+        double paddleCenter = paddle.getX() + (double) PADDLE_WIDTH / 2;
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
     }
 
@@ -385,7 +388,7 @@ public class BreakoutClient extends GraphicsProgram {
         if (iLost == 1) {
             renderTextInCenter("You Lost :(((", Color.RED, 30);
         } else {
-            renderTextInCenter("Oponnent won :((", Color.RED, 30);
+            renderTextInCenter("Opponent won :((", Color.RED, 30);
         }
         closeConnection();
     }
@@ -396,7 +399,7 @@ public class BreakoutClient extends GraphicsProgram {
         if (iWon == 1) {
             renderTextInCenter("You WON :))", Color.GREEN, 30);
         } else {
-            renderTextInCenter("Oponnent lostt :))", Color.GREEN, 30);
+            renderTextInCenter("Opponent lost :))", Color.GREEN, 30);
         }
         closeConnection();
     }
@@ -423,7 +426,7 @@ public class BreakoutClient extends GraphicsProgram {
 
 
     // -------------------- RENDERERS ------------------------
-    private void renderSeperator() {
+    private void renderSeparator() {
         seperator1 = new GLine(WIDTH, 0, WIDTH, HEIGHT);
         seperator2 = new GLine(WIDTH + SEPERATOR_WIDTH, 0, WIDTH + SEPERATOR_WIDTH, HEIGHT);
         add(seperator1);
@@ -435,7 +438,7 @@ public class BreakoutClient extends GraphicsProgram {
         switcher.setSize(30, 20);
         switcher.sendToFront();
         double x = bricksLeft.getX() - switcher.getWidth() - 10;
-        add(switcher, x, HEART_OFFSET / 2);
+        add(switcher, x, (double) HEART_OFFSET / 2);
     }
 
     private void renderBricksLeft() {
@@ -475,7 +478,7 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void createBall() {
-        ball = new GOval(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
+        ball = new GOval((double) WIDTH / 2 - BALL_RADIUS, (double) HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
         ball.setFilled(true);
         add(ball);
     }
@@ -494,7 +497,7 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void drawBrickRow(Color color, double y, boolean isForClient) {
-        double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
+        double x = (double) (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
         if (isForClient) {
             x += WIDTH + SEPERATOR_WIDTH;
         }
@@ -513,7 +516,7 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void createPaddle() {
-        paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        paddle = new GRect((double) (WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
         paddle.setFilled(true);
         add(paddle);
     }
@@ -524,21 +527,21 @@ public class BreakoutClient extends GraphicsProgram {
         }
 
         counter = new GLabel("" + count);
-        double centerX = WIDTH + SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
-        double centerY = HEIGHT / 2 - counter.getAscent() / 2;
+        double centerX = WIDTH + (double) SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
+        double centerY = (double) HEIGHT / 2 - counter.getAscent() / 2;
         counter.setFont(new Font("serif", Font.PLAIN, 25));
         counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
         add(counter, centerX, centerY);
     }
 
     private void createServerBall() {
-        serverBall = new GOval(WIDTH / 2 - BALL_RADIUS + SEPERATOR_WIDTH + WIDTH, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
+        serverBall = new GOval((double) WIDTH / 2 - BALL_RADIUS + SEPERATOR_WIDTH + WIDTH, (double) HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
         serverBall.setFilled(true);
         add(serverBall);
     }
 
     private void createServerPaddle() {
-        serverPaddle = new GRect((WIDTH - PADDLE_WIDTH) / 2 + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        serverPaddle = new GRect((double) (WIDTH - PADDLE_WIDTH) / 2 + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
         serverPaddle.setFilled(true);
         add(serverPaddle);
     }
