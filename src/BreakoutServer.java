@@ -1,3 +1,21 @@
+/*
+ * Filename: BreakoutServer.java
+ * Description: This file is part of the BreakoutOnline game, allowing two players to connect from different devices on the same network and play against each other.
+ *
+ * Instructions:
+ *
+ * - Start the BreakoutServer on one device within the local network.
+ * - Configure the PORT (an available port number) and ensure the server's firewall permits incoming connections on this PORT.
+ * - Provide the server's local IP address and PORT to the BreakoutClient running on the other device to enable a connection.
+ *
+ * Note:
+ *
+ * The server manages the game state (countdown and when to start the game), there might be some lags and bugs, but it was fun thing to work on.
+ * There may be tons of ways to refactor the code better way, but I had enough of it
+ *
+ * Took some examples from geeksforgeeks (https://www.geeksforgeeks.org/socket-programming-in-java)
+ */
+
 import acm.graphics.*;
 import acm.program.GraphicsProgram;
 import acm.util.RandomGenerator;
@@ -12,6 +30,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class BreakoutServer extends GraphicsProgram {
+
+    private static final int PORT = 6969;
+
 
     public static final int DELAY = 7;
     public static final int SEPARATOR_WIDTH = 300;
@@ -39,7 +60,6 @@ public class BreakoutServer extends GraphicsProgram {
     private static final int START_BUTTON_HEIGHT = 50;
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
-    private static final int PORT = 6969;
 
     private GRect paddle;
     private GRect clientPaddle;
@@ -121,7 +141,7 @@ public class BreakoutServer extends GraphicsProgram {
             in = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
             out = new DataOutputStream(socket.getOutputStream());
 
-            // We need a new thread so that gameloop doesnt stop
+            // We need a new thread so that game loop doesn't stop
             new Thread(() -> {
                 while (true) {
                     try {
@@ -139,6 +159,7 @@ public class BreakoutServer extends GraphicsProgram {
         }
     }
 
+    // There are 2 kinds of *protocols*, one starts with 0, the second one starts with 1, protocol 0 is for receiveing game variables like paddle and ball location, protocol 1 is for finishing the game, happens when one of the players lost/won the game
     private void receiveData() throws IOException {
         int messageType = in.readInt();
         if (messageType == 0) {
@@ -178,7 +199,9 @@ public class BreakoutServer extends GraphicsProgram {
             double paddleX = paddle.getX();
             double ballX = ball.getX();
             double ballY = ball.getY();
+            // We are sending game variables, so here comes protocol 0
             out.writeInt(0);
+
             out.writeDouble(paddleX);
             out.writeDouble(ballX);
             out.writeDouble(ballY);
@@ -192,7 +215,9 @@ public class BreakoutServer extends GraphicsProgram {
 
     private void sendWinEvent() {
         try {
+            // We won, so here comes protocol 1
             out.writeInt(1);
+
             out.writeBoolean(true);
         } catch (IOException e) {
             closeConnection();
@@ -202,7 +227,9 @@ public class BreakoutServer extends GraphicsProgram {
 
     private void sendLoseEvent() {
         try {
+            // We lost, so here comes protocol 1
             out.writeInt(1);
+
             out.writeBoolean(false);
         } catch (IOException e) {
             closeConnection();
@@ -268,6 +295,7 @@ public class BreakoutServer extends GraphicsProgram {
         vx = rgen.nextDouble(1.0, 3.0) * (rgen.nextBoolean(0.5) ? -1 : 1);
     }
 
+    // We need a new thread for countdown
     private void startCountdown() {
         new Thread(() -> {
             try {
@@ -299,6 +327,7 @@ public class BreakoutServer extends GraphicsProgram {
     }
 
     @Override
+    // To switch theme or start the game
     public void mouseClicked(MouseEvent e) {
         double x = e.getX();
         double y = e.getY();
@@ -306,7 +335,7 @@ public class BreakoutServer extends GraphicsProgram {
         if (startButton.contains(x, y)) {
             remove(startButton);
             remove(startButtonLabel);
-            startCountdown(); // Start the countdown instead of directly starting the game
+            startCountdown();
         } else if (switcher.contains(x, y)) {
             handleThemeChange();
         }
@@ -365,6 +394,7 @@ public class BreakoutServer extends GraphicsProgram {
     }
 
 
+    // I need to get which heart needs to be deleted based on how many turns are left
     private GObject getCurrentHeart() {
         double x = HEART_OFFSET + (turnsCount - 1) * (HEART_WIDTH + HEART_GAP) + (double) HEART_WIDTH / 2;
         return getElementAt(x, (double) HEART_WIDTH / 2);

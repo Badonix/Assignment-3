@@ -1,3 +1,19 @@
+/*
+ * Filename: BreakoutClient.java
+ * Description: This file is part of the BreakoutOnline game, allowing two players to connect from different devices on the same network and play against each other.
+ *
+ * Instructions:
+ * - Both BreakoutServer and BreakoutClient need to be running on the same local network.
+ * - To connect, specify the ADDRESS (local IP of the server device) and PORT (an available port on the server) in the client code.
+ * - The game will synchronize gameplay between the client and server, enabling real-time multiplayer.
+ *
+ * Note:
+ * Ensure server is running before running this file, ensure the firewall settings allow connections on the chosen PORT, and that both devices are on the same network.
+ * There may be tons of ways to refactor the code better way, but I had enough of it
+ *
+ * Took some examples from geeksforgeeks (https://www.geeksforgeeks.org/socket-programming-in-java)
+ */
+
 import acm.graphics.*;
 import acm.program.GraphicsProgram;
 import acm.util.RandomGenerator;
@@ -11,6 +27,10 @@ import java.net.Socket;
 import java.net.UnknownHostException;
 
 public class BreakoutClient extends GraphicsProgram {
+
+    private static final int PORT = 6969;
+    private static final String ADDRESS = "192.168.1.148";
+
 
     public static final int DELAY = 7;
     public static final int SEPERATOR_WIDTH = 300;
@@ -55,8 +75,7 @@ public class BreakoutClient extends GraphicsProgram {
     private RandomGenerator rgen = RandomGenerator.getInstance();
 
     // Network things
-    private static final int PORT = 6969;
-    private static final String ADDRESS = "192.168.1.148";
+
     private Socket socket = null;
     private DataInputStream input = null;
     private DataOutputStream output = null;
@@ -112,7 +131,9 @@ public class BreakoutClient extends GraphicsProgram {
             double paddleX = paddle.getX();
             double ballX = ball.getX();
             double ballY = ball.getY();
+            // We are sending game variables, so here comes PROTOCOL 0
             output.writeInt(0);
+
             output.writeDouble(paddleX);
             output.writeDouble(ballX);
             output.writeDouble(ballY);
@@ -120,7 +141,6 @@ public class BreakoutClient extends GraphicsProgram {
             output.writeDouble(brickY);
         } catch (IOException e) {
             closeConnection();
-            return;
         }
     }
 
@@ -163,8 +183,7 @@ public class BreakoutClient extends GraphicsProgram {
                 if (gameStarted) {
                     int messageType = input.readInt();
 
-                    // 0 is for receiving info like paddleX, paddleY and ball coordinates
-                    // 1 is to end gameplay
+                    // There are 2 kinds of *protocols*, one starts with 0, the second one starts with 1, protocol 0 is for receiveing game variables like paddle and ball location, protocol 1 is for finishing the game, happens when one of the players lost/won the game
                     if (messageType == 0) {
                         receiveAndProcessGameVariables();
                     } else if (messageType == 1) {
@@ -189,6 +208,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     private void sendLoseEvent() {
         try {
+            // We are finishing the game, so PROTOCOL 1
             output.writeInt(1);
             output.writeBoolean(false);
         } catch (IOException e) {
@@ -199,6 +219,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     private void sendWinEvent() {
         try {
+            // We are finishing the game, so PROTOCOL 1
             output.writeInt(1);
             output.writeBoolean(true);
         } catch (IOException e) {
@@ -224,9 +245,12 @@ public class BreakoutClient extends GraphicsProgram {
     // --------------- LISTENERS ---------------------
     @Override
     public void mouseMoved(MouseEvent e) {
+        if (isGameOver()) {
+            return;
+        }
         double x = e.getX() - (double) PADDLE_WIDTH / 2;
         double paddleY = paddle.getY();
-        if (gameStarted && x >= 0 && x + PADDLE_WIDTH <= WIDTH && !isGameOver()) {
+        if (gameStarted && x >= 0 && x + PADDLE_WIDTH <= WIDTH) {
             paddle.setLocation(x, paddleY);
         }
     }
@@ -236,6 +260,7 @@ public class BreakoutClient extends GraphicsProgram {
         double x = e.getX();
         double y = e.getY();
 
+        // If user clicked theme switcher...
         if (switcher.contains(x, y)) {
             handleThemeChange();
         }
