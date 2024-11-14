@@ -44,7 +44,7 @@ public class BreakoutExtension extends GraphicsProgram {
     private GImage switcher;
     private GRect startButton;
     private GLabel startButtonLabel;
-    private String startButtonText = "Start Game";
+    private static final String startButtonText = "Start Game";
     private boolean gameStarted = false;
 
 
@@ -90,7 +90,12 @@ public class BreakoutExtension extends GraphicsProgram {
     private void moveBall() {
         ball.move(vx, vy);
         if (ball.getX() <= 0 || ball.getX() + BALL_RADIUS * 2 >= WIDTH) {
-            vx = -vx;
+            // ball was sticking to edges and had to use the absolute value of vx
+            if (ball.getX() <= 0) {
+                vx = Math.abs(vx);
+            } else {
+                vx = -Math.abs(vx);
+            }
         }
         if (ball.getY() <= 0) {
             vy = -vy;
@@ -109,12 +114,16 @@ public class BreakoutExtension extends GraphicsProgram {
         double x = HEART_OFFSET;
 
         for (int i = 0; i < turnsCount; i++) {
-            GImage heart = new GImage("./heart.png");
-            heart.setSize(30, 30);
-            add(heart, x, y);
-            heart.sendToFront();
-            x += HEART_GAP + heart.getWidth();
+            renderSingleHeart(x, y);
+            x += HEART_GAP + HEART_WIDTH;
         }
+    }
+
+    private void renderSingleHeart(double x, double y) {
+        GImage heart = new GImage("./heart.png");
+        heart.setSize(HEART_WIDTH, HEART_WIDTH);
+        add(heart, x, y);
+        heart.sendToFront();
     }
 
     private void createBall() {
@@ -135,15 +144,18 @@ public class BreakoutExtension extends GraphicsProgram {
     private void drawBrickRow(Color color, double y) {
         double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
         for (int j = 0; j < NBRICKS_PER_ROW; j++) {
-            GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
-            brick.setFilled(true);
-            brick.setFillColor(color);
-            brick.setColor(color);
-            add(brick);
+            drawBrick(color, x, y);
             x += BRICK_WIDTH + BRICK_SEP;
         }
     }
 
+    private void drawBrick(Color color, double x, double y) {
+        GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
+        brick.setFilled(true);
+        brick.setFillColor(color);
+        brick.setColor(color);
+        add(brick);
+    }
 
     private void createPaddle() {
         paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
@@ -321,9 +333,11 @@ public class BreakoutExtension extends GraphicsProgram {
         remove(switcher);
         isDarkModeEnabled = !isDarkModeEnabled;
         renderThemeSwitcher(isDarkModeEnabled);
-        ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
+        Color secondaryColor = isDarkModeEnabled ? Color.BLACK : Color.WHITE;
+        Color primaryColor = isDarkModeEnabled ? Color.WHITE : Color.BLACK;
+        ball.setColor(secondaryColor);
+        paddle.setColor(secondaryColor);
+        setBackground(primaryColor);
     }
 
     private void renderStartMenu() {

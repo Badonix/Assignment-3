@@ -35,7 +35,7 @@ public class BreakoutClient extends GraphicsProgram {
     private static final int HEART_GAP = 5;
     private static final int HEART_WIDTH = 30;
     private static final int PORT = 6969;
-    private static final String ADDRESS = "192.168.1.188";
+    private static final String ADDRESS = "192.168.1.148";
 
     private GRect paddle;
     private GRect serverPaddle;
@@ -53,26 +53,22 @@ public class BreakoutClient extends GraphicsProgram {
     private GLine seperator1;
     private GLine seperator2;
 
+    // socket things
     private Socket socket = null;
     private DataInputStream input = null;
     private DataOutputStream output = null;
 
 
     public void run() {
-        initGame();              // Set up the game environment
-        addMouseListeners();      // Set up controls
-        connectToServer(ADDRESS, PORT);  // Connect to the server
-
-        // Wait until the game starts
+        initGame();
+        addMouseListeners();
+        connectToServer();
         while (!gameStarted) {
             pause(100);
         }
-
-        // Start the game loop once gameStarted is true
         gameLoop();
     }
 
-    // Setting all variables ready for the game
     private void initGame() {
         drawBricks();
         setRandomVx();
@@ -103,12 +99,12 @@ public class BreakoutClient extends GraphicsProgram {
         while (turnsCount > 0 && aliveBricks > 0) {
             moveBall();
             checkCollisions();
-            sendPositionsToServer(0, 0);  // New method to handle sending paddle position
+            sendPositionsToServer(0, 0);
             pause(DELAY);
         }
 
         if (turnsCount == 0) {
-            sendLoseEent();
+            sendLoseEvent();
             handleGameLoss(1);
         } else if (aliveBricks == 0) {
             sendWinEvent();
@@ -116,6 +112,9 @@ public class BreakoutClient extends GraphicsProgram {
         }
         remove(ball);
     }
+
+
+    // --------------- SOCKET FUNCTIONS -------------------
 
     private void sendPositionsToServer(double brickX, double brickY) {
         try {
@@ -129,7 +128,27 @@ public class BreakoutClient extends GraphicsProgram {
             output.writeDouble(brickX);
             output.writeDouble(brickY);
         } catch (IOException e) {
-            System.out.println("Failed to send paddle position: " + e.getMessage());
+            System.out.println("Failed to send data: " + e.getMessage());
+        }
+    }
+
+    private void connectToServer() {
+        try {
+            socket = new Socket(ADDRESS, PORT);
+            System.out.println("CONNECTED");
+
+            input = new DataInputStream(socket.getInputStream());
+            output = new DataOutputStream(socket.getOutputStream());
+
+            new Thread(() -> {
+                handleCountdownEvent();
+                receiveData();
+            }).start();
+
+        } catch (UnknownHostException e) {
+            System.out.println("Unknown host: " + e.getMessage());
+        } catch (IOException e) {
+            System.out.println("I/O error: " + e.getMessage());
         }
     }
 
@@ -143,172 +162,69 @@ public class BreakoutClient extends GraphicsProgram {
         }
     }
 
-    private void connectToServer(String address, int port) {
-        try {
-            socket = new Socket(address, port);
-            System.out.println("CONNECTED");
+    private void receiveData() {
+        while (true) {
+            try {
+                if (gameStarted) {
+                    int messageType = input.readInt();
 
-            input = new DataInputStream(socket.getInputStream());
-            output = new DataOutputStream(socket.getOutputStream());
-
-            new Thread(() -> {
-                try {
-                    while (true) {
-                        if (input.available() > 0) {
-                            int countdown = input.readInt();
-                            displayCountdown(countdown);
-
-                            if (countdown == 0) {
-                                boolean gameStarted = input.readBoolean();
-                                if (gameStarted) {
-                                    startGameLoop();
-                                    remove(counter);
-                                }
-                                break;
-                            }
-                        }
+                    // 0 is for receiving info like paddleX, paddleY and ball coordinates
+                    // 1 is to end gameplay
+                    if (messageType == 0) {
+                        receiveAndProcessGameVariables();
+                    } else if (messageType == 1) {
+                        receiveGameEndEvent();
                     }
-
-                    while (true) {
-
-                        if (gameStarted) {
-                            int messageType = input.readInt();
-                            if (messageType == 0) {
-                                double paddleX = input.readDouble();
-                                double ballX = input.readDouble();
-                                double ballY = input.readDouble();
-                                double brickX = input.readDouble();
-                                double brickY = input.readDouble();
-                                // Update game objects based on received data
-                                GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
-                                if (currentEl != null && currentEl instanceof GRect) {
-                                    remove(currentEl);
-                                }
-                                serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
-                                serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
-                            } else if (messageType == 1) {
-                                boolean statusMessage = input.readBoolean();
-                                if (statusMessage) {
-                                    System.out.println("The other player won the game!");
-                                    handleGameLoss(0);
-                                } else {
-                                    System.out.println("The other player lost the game!");
-                                    handleGameWin(0);
-                                }
-                            }
-                        }
-                    }
-                } catch (IOException e) {
-                    System.out.println("Error in communication thread: " + e.getMessage());
                 }
-            }).start();
+            } catch (IOException e) {
+                System.out.println(e);
+            }
+        }
+    }
 
-        } catch (UnknownHostException e) {
-            System.out.println("Unknown host: " + e.getMessage());
+    private void receiveGameEndEvent() throws IOException {
+        boolean statusMessage = input.readBoolean();
+        if (statusMessage) {
+            handleGameLoss(0);
+        } else {
+            handleGameWin(0);
+        }
+    }
+
+    private void sendLoseEvent() {
+        try {
+            output.writeInt(1);
+            output.writeBoolean(false);
         } catch (IOException e) {
-            System.out.println("I/O error: " + e.getMessage());
+            System.out.println(e);
         }
     }
 
-    private void displayCountdown(int count) {
-        if (counter != null) {
-            remove(counter);
-        }
-
-        counter = new GLabel("" + count);
-        double centerX = WIDTH + SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
-        double centerY = HEIGHT / 2 - counter.getAscent() / 2;
-        counter.setFont(new Font("serif", Font.PLAIN, 25));
-        counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        add(counter, centerX, centerY);
-    }
-
-    // Method to start the game loop on the client
-    private void startGameLoop() {
-        gameStarted = true; // Ensure game starts
-        // Begin client game loop logic here
-    }
-
-    // DVD screensaver like animation, but if it touches the bottom of the screen we record it as a *missed ball*
-    private void moveBall() {
-        ball.move(vx, vy);
-        if (ball.getX() <= 0 || ball.getX() + BALL_RADIUS * 2 >= WIDTH) {
-            vx = -vx;
-        }
-        if (ball.getY() <= 0) {
-            vy = -vy;
-        } else if (ball.getY() + BALL_RADIUS * 2 >= HEIGHT) {
-            handleBallMiss();
+    private void sendWinEvent() {
+        try {
+            output.writeInt(1);
+            output.writeBoolean(true);
+        } catch (IOException e) {
+            System.out.println(e);
         }
     }
 
-
-    /*
-        GAME INIT
-     */
-
-    private void renderHearts() {
-        double y = 0;
-        double x = HEART_OFFSET;
-
-        for (int i = 0; i < turnsCount; i++) {
-            GImage heart = new GImage("./heart.png");
-            heart.setSize(30, 30);
-            add(heart, x, y);
-            heart.sendToFront();
-            x += HEART_GAP + heart.getWidth();
+    private void receiveAndProcessGameVariables() throws IOException {
+        double paddleX = input.readDouble();
+        double ballX = input.readDouble();
+        double ballY = input.readDouble();
+        double brickX = input.readDouble();
+        double brickY = input.readDouble();
+        GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
+        if (currentEl instanceof GRect) {
+            remove(currentEl);
         }
+        serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
+        serverBall.setLocation(ballX + WIDTH + SEPERATOR_WIDTH, ballY);
     }
 
-    private void createBall() {
-        ball = new GOval(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
-        ball.setFilled(true);
-        add(ball);
-    }
-
-    private void drawBricks() {
-        double startingY = BRICK_Y_OFFSET;
-        for (int i = 0; i < NBRICK_ROWS; i++) {
-            drawBrickRow(getBrickColor(i), startingY, false);
-            startingY += BRICK_HEIGHT + BRICK_SEP;
-        }
-        startingY = BRICK_Y_OFFSET;
-        for (int i = 0; i < NBRICK_ROWS; i++) {
-            drawBrickRow(getBrickColor(i), startingY, true);
-            startingY += BRICK_HEIGHT + BRICK_SEP;
-        }
-    }
-
-    // just draws one row of bricks, self-explanatory, no more comments needed
-    private void drawBrickRow(Color color, double y, boolean isForClient) {
-        double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
-        if (isForClient) {
-            x += WIDTH + SEPERATOR_WIDTH;
-        }
-        for (int j = 0; j < NBRICKS_PER_ROW; j++) {
-            GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
-            brick.setFilled(true);
-            brick.setFillColor(color);
-            brick.setColor(color);
-            add(brick);
-            x += BRICK_WIDTH + BRICK_SEP;
-        }
-    }
-
-
-    private void createPaddle() {
-        paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
-        paddle.setFilled(true);
-        add(paddle);
-    }
-
-
-    /*
-        HANDLE EVENTS
-     */
-
-
-    // Just setting the paddleX based on mouse x
+    // --------------- LISTENERS ---------------------
+    @Override
     public void mouseMoved(MouseEvent e) {
         double x = e.getX() - PADDLE_WIDTH / 2;
         double paddleY = paddle.getY();
@@ -327,69 +243,30 @@ public class BreakoutClient extends GraphicsProgram {
         }
     }
 
-    // If the paddle misses the ball... RIP
-    private void handleBallMiss() {
-        GObject heart = getCurrentHeart();
-        remove(heart);
-        turnsCount--;
-        if (turnsCount > 0) {
-            resetBall();
+
+    // --------------- HELPERS ------------------
+
+    // Method to start the game loop on the client
+    private void startGameLoop() {
+        gameStarted = true;
+    }
+
+    // DVD screensaver like animation, but if it touches the bottom of the screen we record it as a *missed ball*
+    private void moveBall() {
+        ball.move(vx, vy);
+        if (ball.getX() <= 0 || ball.getX() + BALL_RADIUS * 2 >= WIDTH) {
+            // ball was sticking to edges and had to use the absolute value of vx
+            if (ball.getX() <= 0) {
+                vx = Math.abs(vx);
+            } else {
+                vx = -Math.abs(vx);
+            }
         }
-
-    }
-
-    // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
-    private void handlePaddleKick() {
-        vy = -Math.abs(vy);
-        double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
-        vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
-    }
-
-    private void handleGameLoss(int iLost) {
-        removeAll();
-        if (iLost == 1) {
-            renderTextInCenter("You Lost :(((", Color.RED, 30);
-        } else {
-            renderTextInCenter("Oponnent won :((", Color.RED, 30);
+        if (ball.getY() <= 0) {
+            vy = -vy;
+        } else if (ball.getY() + BALL_RADIUS * 2 >= HEIGHT) {
+            handleBallMiss();
         }
-        closeConnection();
-    }
-
-    private void handleGameWin(int iWon) {
-
-        removeAll();
-        if (iWon == 1) {
-            renderTextInCenter("You WON :))", Color.GREEN, 30);
-        } else {
-            renderTextInCenter("Oponnent lostt :))", Color.GREEN, 30);
-        }
-        closeConnection();
-    }
-
-    private void sendLoseEent() {
-        try {
-            output.writeInt(1);
-            output.writeBoolean(false);
-        } catch (IOException e) {
-            System.out.println(e);
-        }
-    }
-
-    private void sendWinEvent() {
-        try {
-            output.writeInt(1);
-            output.writeBoolean(true);
-        } catch (IOException e) {
-            System.out.println(e);
-        }
-    }
-
-    /*
-        HELPER FUNCTIONS
-     */
-
-    private boolean isGameOver() {
-        return turnsCount == 0 || aliveBricks == 0;
     }
 
     // Reset the ball to center
@@ -404,6 +281,24 @@ public class BreakoutClient extends GraphicsProgram {
         vx = rgen.nextDouble(1.0, 3.0) * (rgen.nextBoolean(0.5) ? -1 : 1);
     }
 
+    private void checkCollisions() {
+        GObject collider = getBallCollidingObject();
+        if (collider == paddle) {
+            handlePaddleKick();
+        } else if (collider != null && collider instanceof GRect) {
+            remove(collider);
+            aliveBricks--;
+            bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
+            vy = -vy;
+            sendPositionsToServer(collider.getX(), collider.getY());
+        }
+    }
+    // ------------ GETTERS ------------------
+
+    private boolean isGameOver() {
+        return turnsCount == 0 || aliveBricks == 0;
+    }
+
     private Color getBrickColor(int row) {
         if (row >= 8) {
             return Color.CYAN;
@@ -415,19 +310,6 @@ public class BreakoutClient extends GraphicsProgram {
             return Color.ORANGE;
         } else {
             return Color.RED;
-        }
-    }
-
-    private void checkCollisions() {
-        GObject collider = getBallCollidingObject();
-        if (collider == paddle) {
-            handlePaddleKick();
-        } else if (collider != null && collider instanceof GRect) {
-            remove(collider);
-            aliveBricks--;
-            bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
-            vy = -vy;
-            sendPositionsToServer(collider.getX(), collider.getY());
         }
     }
 
@@ -462,15 +344,110 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
 
-    private void renderTextInCenter(String str, Color color, int fontSize) {
-        GLabel text = new GLabel(str);
-        text.setFont(new Font("Serif", Font.PLAIN, fontSize));
-        text.setColor(color);
-        double x = (APPLICATION_WIDTH - text.getWidth()) / 2;
-        double y = (APPLICATION_HEIGHT - text.getAscent()) / 2;
-        add(text, x, y);
+    private GObject getCurrentHeart() {
+        double x = HEART_OFFSET + (turnsCount - 1) * (HEART_WIDTH + HEART_GAP) + HEART_WIDTH / 2;
+        GObject heart = getElementAt(x, HEART_WIDTH / 2);
+        return heart;
     }
 
+
+    // ----------------- HANDLERS ----------------------
+    private void handleCountdownEvent() {
+        while (true) {
+            try {
+                if (input.available() > 0) {
+                    int countdown = input.readInt();
+                    displayCountdown(countdown);
+
+                    if (countdown == 0) {
+                        boolean gameStarted = input.readBoolean();
+                        if (gameStarted) {
+                            startGameLoop();
+                            remove(counter);
+                        }
+                        break;
+                    }
+                }
+            } catch (IOException e) {
+                System.out.println(e);
+            }
+        }
+    }
+
+    // If the paddle misses the ball... RIP
+    private void handleBallMiss() {
+        GObject heart = getCurrentHeart();
+        remove(heart);
+        turnsCount--;
+        if (turnsCount > 0) {
+            resetBall();
+        }
+
+    }
+
+    // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
+    private void handlePaddleKick() {
+        vy = -Math.abs(vy);
+        double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
+        vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
+    }
+
+    private void handleGameLoss(int iLost) {
+        removeAll();
+        if (iLost == 1) {
+            renderTextInCenter("You Lost :(((", Color.RED, 30);
+        } else {
+            renderTextInCenter("Oponnent won :((", Color.RED, 30);
+        }
+        closeConnection();
+    }
+
+    private void handleGameWin(int iWon) {
+        removeAll();
+        if (iWon == 1) {
+            renderTextInCenter("You WON :))", Color.GREEN, 30);
+        } else {
+            renderTextInCenter("Oponnent lostt :))", Color.GREEN, 30);
+        }
+        closeConnection();
+    }
+
+    private void handleThemeChange() {
+        remove(switcher);
+        isDarkModeEnabled = !isDarkModeEnabled;
+        renderThemeSwitcher(isDarkModeEnabled);
+
+        Color primaryColor = isDarkModeEnabled ? Color.WHITE : Color.BLACK;
+        Color secondaryColor = isDarkModeEnabled ? Color.BLACK : Color.WHITE;
+
+        if (counter != null) {
+            counter.setColor(secondaryColor);
+        }
+        ball.setColor(secondaryColor);
+        serverBall.setColor(secondaryColor);
+        paddle.setColor(secondaryColor);
+        seperator1.setColor(secondaryColor);
+        seperator2.setColor(secondaryColor);
+        serverPaddle.setColor(secondaryColor);
+        setBackground(primaryColor);
+    }
+
+
+    // -------------------- RENDERERS ------------------------
+    private void renderSeperator() {
+        seperator1 = new GLine(WIDTH, 0, WIDTH, HEIGHT);
+        seperator2 = new GLine(WIDTH + SEPERATOR_WIDTH, 0, WIDTH + SEPERATOR_WIDTH, HEIGHT);
+        add(seperator1);
+        add(seperator2);
+    }
+
+    private void renderThemeSwitcher(boolean darkMode) {
+        switcher = darkMode ? new GImage("./light.png") : new GImage("./dark.png");
+        switcher.setSize(30, 20);
+        switcher.sendToFront();
+        double x = bricksLeft.getX() - switcher.getWidth() - 10;
+        add(switcher, x, HEART_OFFSET / 2);
+    }
 
     private void renderBricksLeft() {
         bricksLeft = new GLabel("Bricks: " + (int) aliveBricks);
@@ -482,40 +459,86 @@ public class BreakoutClient extends GraphicsProgram {
         add(bricksLeft, x, y);
     }
 
-    private GObject getCurrentHeart() {
-        double x = HEART_OFFSET + (turnsCount - 1) * (HEART_WIDTH + HEART_GAP) + HEART_WIDTH / 2;
-        GObject heart = getElementAt(x, HEART_WIDTH / 2);
-        return heart;
+    private void renderTextInCenter(String str, Color color, int fontSize) {
+        GLabel text = new GLabel(str);
+        text.setFont(new Font("Serif", Font.PLAIN, fontSize));
+        text.setColor(color);
+        double x = (APPLICATION_WIDTH - text.getWidth()) / 2;
+        double y = (APPLICATION_HEIGHT - text.getAscent()) / 2;
+        add(text, x, y);
     }
 
-    private void renderThemeSwitcher(boolean darkMode) {
-        switcher = darkMode ? new GImage("./light.png") : new GImage("./dark.png");
-        switcher.setSize(30, 20);
-        switcher.sendToFront();
-        double x = bricksLeft.getX() - switcher.getWidth() - 10;
-        add(switcher, x, HEART_OFFSET / 2);
-    }
+    private void renderHearts() {
+        double y = 0;
+        double x = HEART_OFFSET;
 
-    private void handleThemeChange() {
-        remove(switcher);
-        isDarkModeEnabled = !isDarkModeEnabled;
-        renderThemeSwitcher(isDarkModeEnabled);
-        ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        serverBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        if (counter != null) {
-            counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        for (int i = 0; i < turnsCount; i++) {
+            renderSingleHeart(x, y);
+            x += HEART_GAP + HEART_WIDTH;
         }
-        seperator1.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        seperator2.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        serverPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
     }
 
-    private void renderSeperator() {
-        seperator1 = new GLine(WIDTH, 0, WIDTH, HEIGHT);
-        seperator2 = new GLine(WIDTH + SEPERATOR_WIDTH, 0, WIDTH + SEPERATOR_WIDTH, HEIGHT);
-        add(seperator1);
-        add(seperator2);
+    private void renderSingleHeart(double x, double y) {
+        GImage heart = new GImage("./heart.png");
+        heart.setSize(HEART_WIDTH, HEART_WIDTH);
+        add(heart, x, y);
+        heart.sendToFront();
+    }
+
+    private void createBall() {
+        ball = new GOval(WIDTH / 2 - BALL_RADIUS, HEIGHT / 2 - BALL_RADIUS, BALL_RADIUS * 2, BALL_RADIUS * 2);
+        ball.setFilled(true);
+        add(ball);
+    }
+
+    private void drawBricks() {
+        double startingY = BRICK_Y_OFFSET;
+        for (int i = 0; i < NBRICK_ROWS; i++) {
+            drawBrickRow(getBrickColor(i), startingY, false);
+            startingY += BRICK_HEIGHT + BRICK_SEP;
+        }
+        startingY = BRICK_Y_OFFSET;
+        for (int i = 0; i < NBRICK_ROWS; i++) {
+            drawBrickRow(getBrickColor(i), startingY, true);
+            startingY += BRICK_HEIGHT + BRICK_SEP;
+        }
+    }
+
+    private void drawBrickRow(Color color, double y, boolean isForClient) {
+        double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
+        if (isForClient) {
+            x += WIDTH + SEPERATOR_WIDTH;
+        }
+        for (int j = 0; j < NBRICKS_PER_ROW; j++) {
+            drawBrick(color, x, y);
+            x += BRICK_WIDTH + BRICK_SEP;
+        }
+    }
+
+    private void drawBrick(Color color, double x, double y) {
+        GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
+        brick.setFilled(true);
+        brick.setFillColor(color);
+        brick.setColor(color);
+        add(brick);
+    }
+
+    private void createPaddle() {
+        paddle = new GRect((WIDTH - PADDLE_WIDTH) / 2, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT, PADDLE_WIDTH, PADDLE_HEIGHT);
+        paddle.setFilled(true);
+        add(paddle);
+    }
+
+    private void displayCountdown(int count) {
+        if (counter != null) {
+            remove(counter);
+        }
+
+        counter = new GLabel("" + count);
+        double centerX = WIDTH + SEPERATOR_WIDTH / 2 + counter.getWidth() / 2;
+        double centerY = HEIGHT / 2 - counter.getAscent() / 2;
+        counter.setFont(new Font("serif", Font.PLAIN, 25));
+        counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+        add(counter, centerX, centerY);
     }
 }

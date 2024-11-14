@@ -38,12 +38,12 @@ public class Breakout extends GraphicsProgram {
 
     public void run() {
         initGame();
-        addMouseListeners();
         gameLoop();
     }
 
     // Setting all variables ready for the game
     private void initGame() {
+        addMouseListeners();
         drawBricks();
         setRandomVx();
         createPaddle();
@@ -69,7 +69,12 @@ public class Breakout extends GraphicsProgram {
     private void moveBall() {
         ball.move(vx, vy);
         if (ball.getX() <= 0 || ball.getX() + BALL_RADIUS * 2 >= WIDTH) {
-            vx = -vx;
+            // ball was sticking to edges and had to use the absolute value of vx
+            if (ball.getX() <= 0) {
+                vx = Math.abs(vx);
+            } else {
+                vx = -Math.abs(vx);
+            }
         }
         if (ball.getY() <= 0) {
             vy = -vy;
@@ -100,13 +105,17 @@ public class Breakout extends GraphicsProgram {
     private void drawBrickRow(Color color, double y) {
         double x = (WIDTH - NBRICKS_PER_ROW * BRICK_WIDTH - (NBRICKS_PER_ROW - 1) * BRICK_SEP) / 2;
         for (int j = 0; j < NBRICKS_PER_ROW; j++) {
-            GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
-            brick.setFilled(true);
-            brick.setFillColor(color);
-            brick.setColor(color);
-            add(brick);
+            drawBrick(color, x, y);
             x += BRICK_WIDTH + BRICK_SEP;
         }
+    }
+
+    private void drawBrick(Color color, double x, double y) {
+        GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
+        brick.setFilled(true);
+        brick.setFillColor(color);
+        brick.setColor(color);
+        add(brick);
     }
 
 
@@ -205,7 +214,7 @@ public class Breakout extends GraphicsProgram {
     }
 
     // Returns either NULL or object the ball is colliding
-    // I tried checking the 2 corners of each side but it didnt work well
+    // I tried checking the 2 corners of each side but i think this version looks smoother
     private GObject getBallCollidingObject() {
         double leftX = ball.getX();
         double rightX = leftX + BALL_RADIUS * 2;

@@ -179,7 +179,12 @@ public class BreakoutServer extends GraphicsProgram {
     private void moveBall() {
         ball.move(vx, vy);
         if (ball.getX() <= 0 || ball.getX() + BALL_RADIUS * 2 >= WIDTH) {
-            vx = -vx;
+            // ball was sticking to edges and had to use the absolute value of vx
+            if (ball.getX() <= 0) {
+                vx = Math.abs(vx);
+            } else {
+                vx = -Math.abs(vx);
+            }
         }
         if (ball.getY() <= 0) {
             vy = -vy;
@@ -194,12 +199,16 @@ public class BreakoutServer extends GraphicsProgram {
         double x = HEART_OFFSET;
 
         for (int i = 0; i < turnsCount; i++) {
-            GImage heart = new GImage("./heart.png");
-            heart.setSize(30, 30);
-            add(heart, x, y);
-            heart.sendToFront();
-            x += HEART_GAP + heart.getWidth();
+            renderSingleHeart(x, y);
+            x += HEART_GAP + HEART_WIDTH;
         }
+    }
+
+    private void renderSingleHeart(double x, double y) {
+        GImage heart = new GImage("./heart.png");
+        heart.setSize(HEART_WIDTH, HEART_WIDTH);
+        add(heart, x, y);
+        heart.sendToFront();
     }
 
     private void sendPositionsToClient(double brickX, double brickY) {
@@ -207,7 +216,7 @@ public class BreakoutServer extends GraphicsProgram {
             double paddleX = paddle.getX();
             double ballX = ball.getX();
             double ballY = ball.getY();
-            out.writeInt(0);             // Prefix to indicate game data
+            out.writeInt(0);             // Prefix to indicate game data (0 is for game variables, 1 is for countdown)
             out.writeDouble(paddleX);
             out.writeDouble(ballX);
             out.writeDouble(ballY);
@@ -250,13 +259,17 @@ public class BreakoutServer extends GraphicsProgram {
             x += WIDTH + SEPERATOR_WIDTH;
         }
         for (int j = 0; j < NBRICKS_PER_ROW; j++) {
-            GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
-            brick.setFilled(true);
-            brick.setFillColor(color);
-            brick.setColor(color);
-            add(brick);
+            drawBrick(color, x, y);
             x += BRICK_WIDTH + BRICK_SEP;
         }
+    }
+
+    private void drawBrick(Color color, double x, double y) {
+        GRect brick = new GRect(x, y, BRICK_WIDTH, BRICK_HEIGHT);
+        brick.setFilled(true);
+        brick.setFillColor(color);
+        brick.setColor(color);
+        add(brick);
     }
 
 
@@ -475,16 +488,20 @@ public class BreakoutServer extends GraphicsProgram {
         remove(switcher);
         isDarkModeEnabled = !isDarkModeEnabled;
         renderThemeSwitcher(isDarkModeEnabled);
-        ball.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        clientBall.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+
+        Color primaryColor = isDarkModeEnabled ? Color.WHITE : Color.BLACK;
+        Color secondaryColor = isDarkModeEnabled ? Color.BLACK : Color.WHITE;
+
         if (counter != null) {
-            counter.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
+            counter.setColor(secondaryColor);
         }
-        paddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        seperator1.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        seperator2.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        clientPaddle.setColor(isDarkModeEnabled ? Color.BLACK : Color.WHITE);
-        setBackground(isDarkModeEnabled ? Color.WHITE : Color.BLACK);
+        ball.setColor(secondaryColor);
+        clientBall.setColor(secondaryColor);
+        paddle.setColor(secondaryColor);
+        seperator1.setColor(secondaryColor);
+        seperator2.setColor(secondaryColor);
+        clientPaddle.setColor(secondaryColor);
+        setBackground(primaryColor);
     }
 
     private void renderStartMenu() {
