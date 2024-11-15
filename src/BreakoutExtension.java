@@ -1,7 +1,9 @@
 import acm.graphics.*;
 import acm.program.GraphicsProgram;
+import acm.util.MediaTools;
 import acm.util.RandomGenerator;
 
+import java.applet.AudioClip;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 
@@ -32,6 +34,8 @@ public class BreakoutExtension extends GraphicsProgram {
     private static final int START_BUTTON_HEIGHT = 50;
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
+
+    AudioClip bgMusic = MediaTools.loadAudioClip("background_music.au");
 
     private GRect paddle;
     private GOval ball;
@@ -73,6 +77,7 @@ public class BreakoutExtension extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
+        bgMusic.play();
         while (turnsCount > 0 && aliveBricks > 0) {
             moveBall();
             checkCollisions();
