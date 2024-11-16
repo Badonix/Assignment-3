@@ -127,7 +127,7 @@ public class BreakoutServer extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
-        bgMusic.play();
+        bgMusic.loop();
         while (turnsCount > 0 && aliveBricks > 0 && connectionActive) {
             moveBall();
             checkCollisions();

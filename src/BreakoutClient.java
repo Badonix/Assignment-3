@@ -122,7 +122,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
-        bgMusic.play();
+        bgMusic.loop();
         while (turnsCount > 0 && aliveBricks > 0 && connectionActive) {
             moveBall();
             checkCollisions();
@@ -393,8 +393,10 @@ public class BreakoutClient extends GraphicsProgram {
         while (true) {
             try {
                 if (input.available() > 0) {
+                    // Need this variable so that countdown doesn't play multiple times
                     if (shouldPlayCountdownMusic) {
                         countdownSound.play();
+                        // Set it to false
                         shouldPlayCountdownMusic = false;
                     }
                     int countdown = input.readInt();
