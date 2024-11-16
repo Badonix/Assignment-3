@@ -13,8 +13,13 @@
  * The server manages the game state (countdown and when to start the game), there might be some lags and bugs, but it was fun thing to work on.
  * There may be tons of ways to refactor the code better way, but I had enough of it
  *
- * Took some examples from geeksforgeeks (https://www.geeksforgeeks.org/socket-programming-in-java)
- * Audios from https://pixabay.com/sound-effects
+ * took some examples from geeksforgeeks (https://www.geeksforgeeks.org/socket-programming-in-java)
+ * audios from https://pixabay.com/sound-effects
+ *
+ * Known Bugs:
+ * - bricks destroyed by the opponent appear correctly on their screen but do not update on this player's screen.
+ *   This causes the ball to appear as though it passes through an intact brick, even though it has already been destroyed.
+ * (Deadline :(( )
  */
 
 import acm.graphics.*;
@@ -93,6 +98,7 @@ public class BreakoutServer extends GraphicsProgram {
     private GLine separator1;
     private GLine separator2;
 
+    // Network things
     private Socket socket = null;
     private ServerSocket server = null;
     private DataInputStream in = null;
