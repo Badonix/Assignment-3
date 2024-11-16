@@ -12,6 +12,7 @@
  * There may be tons of ways to refactor the code better way, but I had enough of it
  *
  * Took some examples from geeksforgeeks (https://www.geeksforgeeks.org/socket-programming-in-java)
+ * Audios from https://pixabay.com/sound-effects
  */
 
 import acm.graphics.*;
@@ -249,7 +250,6 @@ public class BreakoutClient extends GraphicsProgram {
         double brickY = input.readDouble();
         GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
         if (currentEl instanceof GRect) {
-            destroySound.play();
             remove(currentEl);
         }
         serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
@@ -323,6 +323,7 @@ public class BreakoutClient extends GraphicsProgram {
         if (collider == paddle) {
             handlePaddleKick();
         } else if (collider instanceof GRect) {
+            destroySound.play();
             remove(collider);
             aliveBricks--;
             bricksLeft.setLabel("Bricks : " + (int) aliveBricks);
