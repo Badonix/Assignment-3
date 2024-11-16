@@ -16,8 +16,10 @@
 
 import acm.graphics.*;
 import acm.program.GraphicsProgram;
+import acm.util.MediaTools;
 import acm.util.RandomGenerator;
 
+import java.applet.AudioClip;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.io.DataInputStream;
@@ -59,6 +61,15 @@ public class BreakoutClient extends GraphicsProgram {
     private boolean isDarkModeEnabled = true;
     private boolean gameStarted = false;
 
+
+    // Audio
+    AudioClip bgMusic = MediaTools.loadAudioClip("background_music.au");
+    AudioClip destroySound = MediaTools.loadAudioClip("destroy.au");
+    AudioClip winSound = MediaTools.loadAudioClip("victory.au");
+    AudioClip loseSound = MediaTools.loadAudioClip("lose.au");
+    AudioClip paddleKickSound = MediaTools.loadAudioClip("kick.au");
+    AudioClip countdownSound = MediaTools.loadAudioClip("countdown.au");
+
     // GObjects
     private GRect paddle;
     private GRect serverPaddle;
@@ -82,6 +93,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     private double vx, vy = 3.0;
     private boolean connectionActive = false;
+    private boolean shouldPlayCountdownMusic = true;
 
     public void run() {
         initGame();
@@ -109,6 +121,7 @@ public class BreakoutClient extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
+        bgMusic.play();
         while (turnsCount > 0 && aliveBricks > 0 && connectionActive) {
             moveBall();
             checkCollisions();
@@ -236,6 +249,7 @@ public class BreakoutClient extends GraphicsProgram {
         double brickY = input.readDouble();
         GObject currentEl = getElementAt(brickX + WIDTH + SEPERATOR_WIDTH, brickY);
         if (currentEl instanceof GRect) {
+            destroySound.play();
             remove(currentEl);
         }
         serverPaddle.setLocation(paddleX + WIDTH + SEPERATOR_WIDTH, HEIGHT - PADDLE_Y_OFFSET - PADDLE_HEIGHT);
@@ -378,6 +392,10 @@ public class BreakoutClient extends GraphicsProgram {
         while (true) {
             try {
                 if (input.available() > 0) {
+                    if (shouldPlayCountdownMusic) {
+                        countdownSound.play();
+                        shouldPlayCountdownMusic = false;
+                    }
                     int countdown = input.readInt();
                     displayCountdown(countdown);
 
@@ -409,12 +427,15 @@ public class BreakoutClient extends GraphicsProgram {
 
     // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
     private void handlePaddleKick() {
+        paddleKickSound.play();
         vy = -Math.abs(vy);
         double paddleCenter = paddle.getX() + (double) PADDLE_WIDTH / 2;
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
     }
 
     private void handleGameLoss(int iLost) {
+        bgMusic.stop();
+        loseSound.play();
         sendLoseEvent();
         removeAll();
         if (iLost == 1) {
@@ -426,6 +447,8 @@ public class BreakoutClient extends GraphicsProgram {
     }
 
     private void handleGameWin(int iWon) {
+        bgMusic.stop();
+        winSound.play();
         sendWinEvent();
         removeAll();
         if (iWon == 1) {

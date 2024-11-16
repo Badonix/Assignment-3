@@ -36,6 +36,10 @@ public class BreakoutExtension extends GraphicsProgram {
     private static final Color startButtonLabelText = Color.WHITE;
 
     AudioClip bgMusic = MediaTools.loadAudioClip("background_music.au");
+    AudioClip destroySound = MediaTools.loadAudioClip("destroy.au");
+    AudioClip winSound = MediaTools.loadAudioClip("victory.au");
+    AudioClip loseSound = MediaTools.loadAudioClip("lose.au");
+    AudioClip paddleKickSound = MediaTools.loadAudioClip("kick.au");
 
     private GRect paddle;
     private GOval ball;
@@ -210,18 +214,24 @@ public class BreakoutExtension extends GraphicsProgram {
 
     // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
     private void handlePaddleKick() {
+        paddleKickSound.play();
         vy = -Math.abs(vy);
         double paddleCenter = paddle.getX() + PADDLE_WIDTH / 2;
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
     }
 
     private void handleGameLoss() {
+        bgMusic.stop();
+        loseSound.play();
         renderTextInCenter("You Lost :(((", Color.RED, 30);
     }
 
     private void handleGameWin() {
+        bgMusic.stop();
+        winSound.play();
         renderTextInCenter("You WONN :))", Color.GREEN, 30);
     }
+
 
     /*
         HELPER FUNCTIONS
@@ -261,7 +271,8 @@ public class BreakoutExtension extends GraphicsProgram {
         GObject collider = getBallCollidingObject();
         if (collider == paddle) {
             handlePaddleKick();
-        } else if (collider != null && collider instanceof GRect) {
+        } else if (collider instanceof GRect) {
+            destroySound.play();
             remove(collider);
             aliveBricks--;
             bricksLeft.setLabel("Bricks : " + (int) aliveBricks);

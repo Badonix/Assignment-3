@@ -18,8 +18,10 @@
 
 import acm.graphics.*;
 import acm.program.GraphicsProgram;
+import acm.util.MediaTools;
 import acm.util.RandomGenerator;
 
+import java.applet.AudioClip;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.io.BufferedInputStream;
@@ -60,6 +62,16 @@ public class BreakoutServer extends GraphicsProgram {
     private static final int START_BUTTON_HEIGHT = 50;
     private static final Color START_BUTTON_COLOR = Color.GREEN;
     private static final Color startButtonLabelText = Color.WHITE;
+
+
+    // Audio
+    AudioClip bgMusic = MediaTools.loadAudioClip("background_music.au");
+    AudioClip destroySound = MediaTools.loadAudioClip("destroy.au");
+    AudioClip winSound = MediaTools.loadAudioClip("victory.au");
+    AudioClip loseSound = MediaTools.loadAudioClip("lose.au");
+    AudioClip paddleKickSound = MediaTools.loadAudioClip("kick.au");
+    AudioClip countdownSound = MediaTools.loadAudioClip("countdown.au");
+
 
     private GRect paddle;
     private GRect clientPaddle;
@@ -114,6 +126,7 @@ public class BreakoutServer extends GraphicsProgram {
 
     // Each *frame* happens here
     private void gameLoop() {
+        bgMusic.play();
         while (turnsCount > 0 && aliveBricks > 0 && connectionActive) {
             moveBall();
             checkCollisions();
@@ -187,6 +200,7 @@ public class BreakoutServer extends GraphicsProgram {
 
         GObject currentEl = getElementAt(brickX + WIDTH + SEPARATOR_WIDTH, brickY);
         if (currentEl instanceof GRect) {
+            destroySound.play();
             remove(currentEl);
         }
 
@@ -299,6 +313,7 @@ public class BreakoutServer extends GraphicsProgram {
     private void startCountdown() {
         new Thread(() -> {
             try {
+                countdownSound.play();
                 for (int i = 3; i >= 0; i--) {
                     out.writeInt(i);
                     displayCountdown(i);
@@ -416,12 +431,15 @@ public class BreakoutServer extends GraphicsProgram {
 
     // We estimate the VX of the ball based on how far it was from the center of the paddle (we can try different values of sensitivity)
     private void handlePaddleKick() {
+        paddleKickSound.play();
         vy = -Math.abs(vy);
         double paddleCenter = paddle.getX() + (double) PADDLE_WIDTH / 2;
         vx = (ball.getX() + BALL_RADIUS - paddleCenter) / PADDLE_SENSITIVITY;
     }
 
     private void handleGameLoss(int iLost) {
+        bgMusic.stop();
+        loseSound.play();
         sendLoseEvent();
 
         removeAll();
@@ -434,6 +452,8 @@ public class BreakoutServer extends GraphicsProgram {
     }
 
     private void handleGameWin(int iWon) {
+        bgMusic.stop();
+        winSound.play();
         sendWinEvent();
         removeAll();
         if (iWon == 1) {
